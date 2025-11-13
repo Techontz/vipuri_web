@@ -34,7 +34,7 @@ export default function VendorRegisterForm({ onSuccess }: { onSuccess?: () => vo
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*,.pdf";
-    if (useCamera) input.capture = "environment"; // open camera
+    if (useCamera) input.capture = "environment";
     input.onchange = (e: any) => {
       const file = e.target.files[0];
       if (file) callback(file);
@@ -48,35 +48,58 @@ export default function VendorRegisterForm({ onSuccess }: { onSuccess?: () => vo
     setError("");
     setSuccess("");
 
-    if (!form.firstName || !form.businessName || !avatar || !leseni || !form.nidaNumber) {
+    if (
+      !form.firstName ||
+      !form.businessName ||
+      !avatar ||
+      !leseni ||
+      !form.nidaNumber
+    ) {
       setError("Please fill all required fields and upload required files.");
       return;
     }
 
     setLoading(true);
     try {
-      const payload: any = {
-        ...form,
-        avatar,
-        businessLicense: leseni,
-      };
+      // BUILD FORM DATA FOR LARAVEL
+      const fd = new FormData();
+      fd.append("name", `${form.firstName} ${form.lastName}`);
+      fd.append("email", form.email);
+      fd.append("password", form.password);
+      fd.append("password_confirmation", form.password);
+      fd.append("phone", form.phone);
+      fd.append("role", "vendor");
 
+      // Vendor fields
+      fd.append("business_name", form.businessName);
+      fd.append("business_address", form.businessAddress);
+
+      // Files
+      fd.append("avatar", avatar);
+      fd.append("business_license", leseni);
+
+      // NIDA
+      fd.append("nida_number", form.nidaNumber);
+
+      // Optional coordinates
       if (coordinates) {
-        payload.latitude = coordinates.lat;
-        payload.longitude = coordinates.lng;
+        fd.append("latitude", String(coordinates.lat));
+        fd.append("longitude", String(coordinates.lng));
       }
 
-      const res = await AuthService.registerVendor(payload);
+      const res = await AuthService.registerVendor(fd);
       console.log("✅ Vendor registered:", res);
 
       setSuccess("Vendor registered successfully!");
-      setTimeout(() => {
-        router.push("/auth/login");
-      }, 1500);
+      setTimeout(() => router.push("/auth/login"), 1500);
 
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      setError(err.response?.data?.message || "Vendor registration failed.");
+      if (err.response?.data?.errors) {
+        setError(JSON.stringify(err.response.data.errors));
+      } else {
+        setError(err.response?.data?.message || "Vendor registration failed.");
+      }
     } finally {
       setLoading(false);
     }
@@ -160,7 +183,6 @@ export default function VendorRegisterForm({ onSuccess }: { onSuccess?: () => vo
       <InputCardField
         label="Email *"
         type="email"
-        placeholder="example@email.com"
         value={form.email}
         onChange={(v) => setForm({ ...form, email: v })}
       />
@@ -168,14 +190,12 @@ export default function VendorRegisterForm({ onSuccess }: { onSuccess?: () => vo
       <InputCardField
         label="Password *"
         type="password"
-        placeholder="Minimum 8 characters"
         value={form.password}
         onChange={(v) => setForm({ ...form, password: v })}
       />
 
       <InputCardField
         label="Phone"
-        placeholder="+255XXXXXXXXX"
         value={form.phone}
         onChange={(v) => setForm({ ...form, phone: v })}
       />
@@ -205,17 +225,15 @@ export default function VendorRegisterForm({ onSuccess }: { onSuccess?: () => vo
           </div>
         </div>
 
-        {/* NIDA Number Only */}
         <InputCardField
           label="NIDA Number (20 digits) *"
-          placeholder="e.g. 12345678901234567890"
           value={form.nidaNumber}
           onChange={(v) => setForm({ ...form, nidaNumber: v })}
         />
       </div>
 
       {/* Error & Success */}
-      {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
+      {error && <p className="text-red-600 text-sm mt-2 break-words">{error}</p>}
       {success && <p className="text-green-600 text-sm mt-2">{success}</p>}
 
       {/* Submit */}
@@ -231,9 +249,8 @@ export default function VendorRegisterForm({ onSuccess }: { onSuccess?: () => vo
       {showMap && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-4 w-[90%] max-w-lg">
-            <h3 className="font-semibold text-gray-800 mb-2">
-              Select Business Location
-            </h3>
+            <h3 className="font-semibold text-gray-800 mb-2">Select Business Location</h3>
+
             <MapPicker
               onSelect={(addr, lat, lng) => {
                 setForm({ ...form, businessAddress: addr });
@@ -241,6 +258,7 @@ export default function VendorRegisterForm({ onSuccess }: { onSuccess?: () => vo
               }}
               initialAddress={form.businessAddress}
             />
+
             <div className="flex justify-end mt-3">
               <button
                 type="button"
