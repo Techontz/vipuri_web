@@ -15,6 +15,7 @@ export const AuthService = {
       };
 
       const { data } = await api.post("/register", payload);
+
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
@@ -28,29 +29,46 @@ export const AuthService = {
   async registerVendor(form: any) {
     try {
       const fd = new FormData();
+
+      // BASIC DETAILS
       fd.append("name", `${form.firstName} ${form.lastName}`);
       fd.append("email", form.email);
       fd.append("phone", form.phone);
       fd.append("password", form.password);
       fd.append("password_confirmation", form.password);
       fd.append("role", "vendor");
+
+      // BUSINESS DETAILS
       fd.append("business_name", form.businessName);
       fd.append("business_address", form.businessAddress);
-      fd.append("avatar", form.avatar);
-      fd.append("business_license", form.businessLicense); // ✅ FIXED key name
-      if (form.nidaNumber) fd.append("nida_number", form.nidaNumber);
-      if (form.nidaDocument) fd.append("nida_document", form.nidaDocument); // ✅ FIXED key name
-      if (form.latitude) fd.append("latitude", String(form.latitude));
-      if (form.longitude) fd.append("longitude", String(form.longitude));
-  
-      const { data } = await api.post("/register", fd, {
+
+      // FILES
+      if (form.avatar) {
+        fd.append("avatar", form.avatar);
+      }
+
+      if (form.businessLicense) {
+        fd.append("business_license", form.businessLicense);
+      }
+
+      if (form.nidaDocument) {
+        fd.append("nida_document", form.nidaDocument);
+      }
+
+      // NIDA NUMBER
+      if (form.nidaNumber) {
+        fd.append("nida_number", form.nidaNumber);
+      }
+
+      const response = await api.post("/register", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-  
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-  
-      return { success: true, user: data.user, token: data.token };
+
+      return {
+        success: true,
+        message: response.data.message,
+        vendor: response.data.user.vendor,
+      };
     } catch (error: any) {
       return handleError(error);
     }
@@ -59,30 +77,27 @@ export const AuthService = {
   // -------------------- LOGIN --------------------
   async login(email: string, password: string) {
     try {
-      console.log("🚀 Sending to:", api.defaults.baseURL + "/login");
       const { data } = await api.post("/login", { email, password });
-      console.log("✅ Login response:", data);
-  
+
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-  
+
       return { success: true, user: data.user, token: data.token };
     } catch (error: any) {
-      console.error("❌ Login failed:", error.response?.status, error.response?.data);
       return handleError(error);
     }
-  },  
+  },
 
   // -------------------- LOGOUT --------------------
   async logout() {
     try {
       await api.post("/logout");
-    } catch {
-      /* ignore logout errors */
-    }
+    } catch {}
+
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    return { success: true };
+
+    return { success: true, message: "Logged out" };
   },
 
   // -------------------- GET CURRENT USER --------------------
@@ -98,26 +113,22 @@ export const AuthService = {
 // -------------------- ERROR HANDLER --------------------
 function handleError(error: any) {
   if (error.response) {
-    // Backend responded but with an error
     return {
       success: false,
       status: error.response.status,
       message:
-        error.response.data?.message ||
-        "Something went wrong. Please try again later.",
+        error.response.data?.message || "Something went wrong. Try again.",
     };
   }
 
   if (error.request) {
-    // No response received
     return {
       success: false,
       status: 0,
-      message: "No response from server. Check your internet connection.",
+      message: "Server unreachable. Check your internet.",
     };
   }
 
-  // Other unknown error
   return {
     success: false,
     status: 0,
