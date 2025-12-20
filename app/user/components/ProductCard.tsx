@@ -15,7 +15,8 @@ interface Product {
   oldPrice?: number;
   rating?: number;
   reviews?: number;
-  attributes?: string[];
+  description?: string;       // ✅ ADD
+  attributes?: string[];      // ✅ ALREADY OK
 }
 
 interface Props {
@@ -28,13 +29,14 @@ export default function ProductCard({ product }: Props) {
   const [added, setAdded] = useState(false);
   const [liked, setLiked] = useState(false);
 
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL;
+
   const discount =
     product.oldPrice && product.oldPrice > product.price
       ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
       : 0;
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL;
-
+  /* --------------------------- Add To Cart --------------------------- */
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (adding || added) return;
@@ -45,33 +47,30 @@ export default function ProductCard({ product }: Props) {
       return;
     }
 
-    // ✅ Instantly show the tick icon
+    // Instant UI feedback
     setAdding(true);
     setAdded(true);
 
-    // ✅ Optimistically update local cache immediately
+    // Optimistic local update
     try {
       const existing = localStorage.getItem("cart_items");
-      let updatedItems = existing ? JSON.parse(existing) : [];
-      const existingIndex = updatedItems.findIndex(
-        (it: any) => it.product_id === product.id
-      );
+      let updated = existing ? JSON.parse(existing) : [];
 
-      if (existingIndex >= 0) {
-        updatedItems[existingIndex].quantity += 1;
-      } else {
-        updatedItems.push({
+      const idx = updated.findIndex((it: any) => it.product_id === product.id);
+
+      if (idx >= 0) updated[idx].quantity += 1;
+      else {
+        updated.push({
           product_id: product.id,
           quantity: 1,
-          product: product,
+          product,
         });
       }
 
-      // Save updated cache & trigger header badge instantly
-      localStorage.setItem("cart_items", JSON.stringify(updatedItems));
+      localStorage.setItem("cart_items", JSON.stringify(updated));
       window.dispatchEvent(new Event("cart-updated"));
 
-      // ✅ Silently send request in background
+      // Background sync
       axios
         .post(
           `${apiBaseUrl}/cart/add`,
@@ -79,16 +78,12 @@ export default function ProductCard({ product }: Props) {
           { headers: { Authorization: `Bearer ${token}` } }
         )
         .then((res) => {
-          const serverItems = res.data.items || res.data.cart?.items || [];
-          updateCartCache(serverItems);
+          updateCartCache(res.data.items || res.data.cart?.items || []);
         })
-        .catch((err) => {
-          console.warn("⚠️ Cart add failed in background:", err.message);
-        });
+        .catch(() => {});
     } catch (err) {
-      console.error("❌ Error adding to cart:", err);
+      console.error("Cart local update failed:", err);
     } finally {
-      // ✅ keep the tick visible for a moment, then reset
       setTimeout(() => {
         setAdding(false);
         setAdded(false);
@@ -96,45 +91,76 @@ export default function ProductCard({ product }: Props) {
     }
   };
 
+  /* ---------------------------- UI ---------------------------- */
+
   return (
     <div
       onClick={() => router.push(`/user/products?id=${product.id}`)}
-      className="relative bg-white border border-gray-200 rounded-xl hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden flex flex-col"
+      className="
+        relative 
+        bg-white 
+        border border-gray-200
+        rounded-[8px]
+        transition-all 
+        duration-200 
+        cursor-pointer 
+        overflow-hidden 
+        flex flex-col
+        h-[440px]
+      "
     >
-      {/* 🔹 Top Label */}
-      <div className="absolute top-2 left-2 bg-gray-800 text-white text-xs font-semibold px-2 py-0.5 rounded-md z-10">
+      {/* Best Seller Badge */}
+      <div className="absolute top-2 left-2 bg-gray-900 text-white text-xs font-semibold px-2 py-0.5 rounded-md z-10 shadow">
         Best Seller
       </div>
 
-      {/* ❤️ Wishlist Icon */}
+      {/* Wish Icon */}
       <button
         onClick={(e) => {
           e.stopPropagation();
           setLiked(!liked);
         }}
-        className="absolute top-2 right-2 bg-white rounded-full shadow p-1 z-10 hover:scale-105 transition"
+        className="
+          absolute 
+          top-2 right-2 
+          bg-white 
+          rounded-full 
+          shadow 
+          p-1 
+          z-10 
+          hover:scale-105 
+          transition
+        "
       >
         <Heart
-          size={16}
+          size={18}
           className={liked ? "text-red-500 fill-red-500" : "text-gray-400"}
         />
       </button>
 
-      {/* 🖼️ Product Image */}
-      <div className="relative w-full h-48 bg-gray-100">
+        {/* Image */}
+        <div className="relative w-full h-[320px] bg-gray-100">
         <Image
           src={product.image || "/placeholder.png"}
           alt={product.name}
           fill
-          className="object-contain p-4"
-          sizes="250px"
+          className="object-cover"
+          sizes="(max-width: 640px) 50vw, 200px"
         />
 
-        {/* 🛒 Cart Button */}
+        {/* Add to cart button */}
         <button
           onClick={handleAddToCart}
           disabled={adding}
-          className="absolute bottom-2 right-2 bg-white rounded-lg shadow p-2 hover:bg-gray-100 transition"
+          className="
+            absolute bottom-2 right-2 
+            bg-white 
+            rounded-lg 
+            shadow 
+            p-2 
+            hover:bg-gray-50 
+            transition
+          "
         >
           {added ? (
             <CheckCircle2 className="text-green-600" size={18} />
@@ -146,18 +172,36 @@ export default function ProductCard({ product }: Props) {
         </button>
       </div>
 
-      {/* 🧾 Product Details */}
-      <div className="px-3 py-2 flex flex-col flex-grow">
-        <h3 className="font-medium text-sm text-gray-800 line-clamp-2 leading-snug min-h-[38px]">
-          {product.name}
+      {/* Content */}
+      <div className="px-3 py-3 flex flex-col flex-grow">
+        {/* Title */}
+        <h3 className="font-bold text-[17px] text-gray-900 line-clamp-2 leading-tight min-h-[26px]">
+        {product.name}
         </h3>
+        {/* Description */}
+        <p className="mt-1 text-sm font-semibold text-gray-700 line-clamp-1">
+          {product.description}
+        </p>
+        {/* Attributes */}
+        {product.attributes && product.attributes.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {product.attributes.slice(0, 3).map((attr, i) => (
+              <span
+                key={i}
+                className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
+              >
+                {attr}
+              </span>
+            ))}
+          </div>
+        )}
 
-        {/* ⭐ Rating */}
+        {/* Rating */}
         <div className="flex items-center gap-1 mt-1">
           {[...Array(5)].map((_, i) => (
             <Star
               key={i}
-              size={13}
+              size={14}
               className={
                 i < Math.floor(product.rating || 0)
                   ? "text-yellow-400 fill-yellow-400"
@@ -165,23 +209,26 @@ export default function ProductCard({ product }: Props) {
               }
             />
           ))}
+
           {product.reviews && (
             <span className="text-xs text-gray-500 ml-1">
-              ({product.reviews.toLocaleString()})
+              ({product.reviews})
             </span>
           )}
         </div>
 
-        {/* 💰 Price */}
-        <div className="mt-1 flex items-baseline gap-2">
-          <span className="font-semibold text-[15px] text-gray-900">
-            TZS {Number(product.price).toLocaleString("en-TZ")}
+        {/* Price */}
+        <div className="mt-2 flex items-baseline gap-2">
+          <span className="font-bold text-[15px] text-gray-900">
+            TZS {product.price.toLocaleString()}
           </span>
+
           {product.oldPrice && (
             <span className="line-through text-xs text-gray-400">
-              TZS {product.oldPrice.toLocaleString()}
+              {product.oldPrice.toLocaleString()}
             </span>
           )}
+
           {discount > 0 && (
             <span className="text-green-600 text-xs font-medium">
               {discount}% OFF
@@ -189,11 +236,9 @@ export default function ProductCard({ product }: Props) {
           )}
         </div>
 
-        {/* 🔹 Express/Badge Row */}
-        <div className="flex items-center justify-between mt-2">
-          <div className="text-[10px] text-gray-500 flex items-center gap-1">
-            <span>🚚 Selling out fast</span>
-          </div>
+        {/* Footer Badges */}
+        <div className="flex items-center justify-between mt-3">
+          <span className="text-[10px] text-gray-500">🚚 Selling out fast</span>
           <span className="text-[10px] font-semibold text-yellow-500 uppercase">
             express
           </span>

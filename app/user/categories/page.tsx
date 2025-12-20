@@ -19,7 +19,7 @@ interface Subcategory {
 }
 
 /* -------------------------------------------------------------------------- */
-/*               DIRECT2KARIAKOO ALIEXPRESS-STYLE CATEGORY PAGE               */
+/*               Vipuri ALIEXPRESS-STYLE CATEGORY PAGE               */
 /* -------------------------------------------------------------------------- */
 export default function CategoryScreen() {
   const router = useRouter();

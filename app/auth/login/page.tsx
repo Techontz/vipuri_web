@@ -59,7 +59,7 @@ export default function LoginPage() {
         <div className="flex flex-col items-center mb-6">
         <img
           src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/logo.png`}
-          alt="Direct2Kariakoo Logo"
+          alt="Vipuri Logo"
           className="w-20 h-20 mb-3 object-contain"
         />
           <h1 className="text-2xl font-bold text-gray-900">Welcome Back</h1>

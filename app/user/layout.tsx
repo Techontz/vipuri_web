@@ -3,7 +3,7 @@ import Script from "next/script";
 import Footer from "./components/Footer";
 
 export const metadata = {
-  title: "User | Direct2Kariakoo",
+  title: "User | Vipuri",
   description: "Shop smart and direct from Kariakoo vendors.",
 };
 

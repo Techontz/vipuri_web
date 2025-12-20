@@ -16,201 +16,175 @@ interface Props {
   onSelectSubcategory: (id: number) => void;
 }
 
-const CACHE_EXPIRY_MS = 12 * 60 * 60 * 1000; // 12h
+const CACHE_EXPIRY_MS = 12 * 60 * 60 * 1000;
 const memoryCache = new Map<number, { data: Subcategory[]; time: number }>();
 
-export default function SubcategorySection({ categoryId, onSelectSubcategory }: Props) {
+export default function SubcategorySection({
+  categoryId,
+  onSelectSubcategory,
+}: Props) {
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+  const [progress, setProgress] = useState(0);
 
-  /* ------------------ Load & Cache ------------------ */
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  /* ---------------- Load ---------------- */
   useEffect(() => {
     if (!categoryId) return;
-    const cacheKey = `subcategory_cache_${categoryId}`;
+
     const now = Date.now();
+    const cached = memoryCache.get(categoryId);
 
-    if (memoryCache.has(categoryId)) {
-      const { data, time } = memoryCache.get(categoryId)!;
-      if (now - time < CACHE_EXPIRY_MS) {
-        setSubcategories(data);
-        setLoading(false);
-        if (data.length > 0) {
-          setSelectedId(data[0].id);
-          onSelectSubcategory(data[0].id);
-        }
-        return;
-      }
+    if (cached && now - cached.time < CACHE_EXPIRY_MS) {
+      setSubcategories(cached.data);
+      cached.data[0] && onSelectSubcategory(cached.data[0].id);
+      setLoading(false);
+      return;
     }
 
-    const localCache = localStorage.getItem(cacheKey);
-    if (localCache) {
-      try {
-        const parsed = JSON.parse(localCache);
-        if (now - parsed.time < CACHE_EXPIRY_MS && Array.isArray(parsed.data)) {
-          setSubcategories(parsed.data);
-          setLoading(false);
-          memoryCache.set(categoryId, parsed);
-          if (parsed.data.length > 0) {
-            setSelectedId(parsed.data[0].id);
-            onSelectSubcategory(parsed.data[0].id);
-          }
-          return;
-        }
-      } catch {}
-    }
-
-    setLoading(true);
     axios
-      .get(`${process.env.NEXT_PUBLIC_API_URL}/categories/${categoryId}/subcategories`)
+      .get(
+        `${process.env.NEXT_PUBLIC_API_URL}/categories/${categoryId}/subcategories`
+      )
       .then((res) => {
-        const subs = Array.isArray(res.data) ? res.data : [];
-        const cacheData = { data: subs, time: now };
-        memoryCache.set(categoryId, cacheData);
-        localStorage.setItem(cacheKey, JSON.stringify(cacheData));
-        setSubcategories(subs);
-        if (subs.length > 0) {
-          setSelectedId(subs[0].id);
-          onSelectSubcategory(subs[0].id);
-        }
+        const list = Array.isArray(res.data) ? res.data : [];
+        memoryCache.set(categoryId, { data: list, time: now });
+        setSubcategories(list);
+        list[0] && onSelectSubcategory(list[0].id);
       })
-      .catch((err) => console.error("❌ Error loading subcategories:", err))
+      .catch(console.error)
       .finally(() => setLoading(false));
   }, [categoryId]);
 
-  /* ------------------ Scroll Logic ------------------ */
-  const checkScroll = () => {
+  /* ---------------- Scroll ---------------- */
+  const updateScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 0);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 5);
-    const progress = (el.scrollLeft / (el.scrollWidth - el.clientWidth)) * 100;
-    setScrollProgress(progress);
-  };
 
-  const scroll = (dir: "left" | "right") => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollBy({ left: dir === "left" ? -400 : 400, behavior: "smooth" });
+    const maxScroll = el.scrollWidth - el.clientWidth;
+
+    setCanLeft(el.scrollLeft > 5);
+    setCanRight(el.scrollLeft < maxScroll - 5);
+
+    if (maxScroll <= 0) {
+      setProgress(0);
+    } else {
+      setProgress(el.scrollLeft / maxScroll);
+    }
   };
 
   useEffect(() => {
-    checkScroll();
+    updateScroll();
     const el = scrollRef.current;
     if (!el) return;
-    el.addEventListener("scroll", checkScroll);
-    window.addEventListener("resize", checkScroll);
+
+    el.addEventListener("scroll", updateScroll);
+    window.addEventListener("resize", updateScroll);
+
     return () => {
-      el.removeEventListener("scroll", checkScroll);
-      window.removeEventListener("resize", checkScroll);
+      el.removeEventListener("scroll", updateScroll);
+      window.removeEventListener("resize", updateScroll);
     };
   }, []);
 
-  /* ------------------ Loading Skeleton ------------------ */
-  if (loading)
-    return (
-      <div className="grid grid-cols-4 sm:flex sm:overflow-hidden px-6 py-6 gap-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="flex flex-col items-center gap-2 animate-pulse">
-            <div className="w-[65px] h-[65px] rounded-full bg-gray-200" />
-            <div className="h-3 w-16 bg-gray-200 rounded" />
-          </div>
-        ))}
-      </div>
-    );
+  if (loading || !subcategories.length) return null;
 
-  if (subcategories.length === 0)
-    return (
-      <div className="flex justify-center py-6 text-gray-400 text-sm">
-        No subcategories found.
-      </div>
-    );
+  /* ---------------- Indicator math ---------------- */
+  const TRACK_WIDTH_MOBILE = 80;
+  const TRACK_WIDTH_DESKTOP = 120;
+  const THUMB_WIDTH = 24;
 
-  /* ------------------ UI ------------------ */
+  const trackWidth =
+    typeof window !== "undefined" && window.innerWidth < 640
+      ? TRACK_WIDTH_MOBILE
+      : TRACK_WIDTH_DESKTOP;
+
+  const maxThumbMove = trackWidth - THUMB_WIDTH;
+  const thumbX = Math.max(0, Math.min(progress * maxThumbMove, maxThumbMove));
+
   return (
-    <div className="relative bg-white pt-4 pb-10 px-4">
-      {/* ◀ Arrow for desktop */}
-      {canScrollLeft && (
+    <div className="relative pt-1 pb-2 overflow-hidden">
+      {/* LEFT ARROW */}
+      {canLeft && (
         <button
-          onClick={() => scroll("left")}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-white border border-gray-200 rounded-full shadow-md w-8 h-8 hidden sm:flex items-center justify-center hover:bg-gray-100"
+          onClick={() =>
+            scrollRef.current?.scrollBy({ left: -180, behavior: "smooth" })
+          }
+          className="
+            absolute left-1 top-1/2 -translate-y-1/2 z-20
+            w-8 h-8 sm:w-9 sm:h-9
+            rounded-full bg-white shadow
+            flex items-center justify-center
+          "
         >
-          <ChevronLeft className="w-5 h-5 text-gray-600" />
+          <ChevronLeft size={16} />
         </button>
       )}
 
-      {/* 🔹 Scrollable on desktop, 2-row grid on mobile */}
+      {/* SCROLL AREA */}
       <div
         ref={scrollRef}
-        className="grid grid-cols-4 gap-6 sm:flex sm:gap-8 sm:overflow-x-auto sm:scroll-smooth sm:scrollbar-hide items-center"
+        className="
+          flex gap-3 sm:gap-4
+          pr-4 sm:pr-6
+          overflow-x-auto scrollbar-hide scroll-smooth
+        "
       >
-        {subcategories.map((sub) => {
-          const isActive = selectedId === sub.id;
-          return (
-            <button
-              key={sub.id}
-              onClick={() => {
-                setSelectedId(sub.id);
-                onSelectSubcategory(sub.id);
-              }}
-              className={`flex flex-col items-center text-center flex-shrink-0 transition-transform duration-200 ${
-                isActive ? "scale-[1.05]" : "hover:scale-[1.03]"
-              }`}
+        {subcategories.map((sub) => (
+          <button
+            key={sub.id}
+            onClick={() => onSelectSubcategory(sub.id)}
+            className="flex-shrink-0 text-center"
+          >
+            <div
+              className="
+                w-[64px] h-[56px]
+                sm:w-[110px] sm:h-[96px]
+                rounded-xl sm:rounded-2xl
+                flex items-center justify-center
+                bg-gradient-to-b
+                from-[#ECEDEF] via-[#F6F7F8] to-white
+              "
             >
-              {/* 🖼️ Icon */}
-              <div
-                className={`w-[65px] h-[65px] rounded-full border flex items-center justify-center overflow-hidden shadow-sm transition-all bg-white ${
-                  isActive
-                    ? "border-[#008080] ring-2 ring-[#B2DFDB]"
-                    : "border-gray-200 hover:border-[#008080]"
-                }`}
-              >
-                {sub.icon_image_url ? (
-                  <Image
-                    src={sub.icon_image_url}
-                    alt={sub.name}
-                    width={65}
-                    height={65}
-                    className="object-cover w-full h-full"
-                  />
-                ) : (
-                  <span className="text-xl">🛍️</span>
-                )}
-              </div>
+              {sub.icon_image_url ? (
+                <Image
+                  src={sub.icon_image_url}
+                  alt={sub.name}
+                  width={64}
+                  height={64}
+                  className="object-contain max-h-[40px] sm:max-h-[80px]"
+                />
+              ) : (
+                <span>🛍️</span>
+              )}
+            </div>
 
-              <span
-                className={`mt-2 text-[12px] sm:text-[13px] font-semibold leading-tight ${
-                  isActive ? "text-[#008080]" : "text-gray-800"
-                }`}
-              >
-                {sub.name}
-              </span>
-            </button>
-          );
-        })}
+            <div className="mt-2 text-[11px] sm:text-[14px] font-semibold text-gray-900">
+              {sub.name}
+            </div>
+          </button>
+        ))}
       </div>
 
-      {/* ▶ Arrow for desktop */}
-      {canScrollRight && (
+      {/* RIGHT ARROW */}
+      {canRight && (
         <button
-          onClick={() => scroll("right")}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-white border border-gray-200 rounded-full shadow-md w-8 h-8 hidden sm:flex items-center justify-center hover:bg-gray-100"
+          onClick={() =>
+            scrollRef.current?.scrollBy({ left: 180, behavior: "smooth" })
+          }
+          className="
+            absolute right-1 top-1/2 -translate-y-1/2 z-20
+            w-8 h-8 sm:w-9 sm:h-9
+            rounded-full bg-white shadow
+            flex items-center justify-center
+          "
         >
-          <ChevronRight className="w-5 h-5 text-gray-600" />
+          <ChevronRight size={16} />
         </button>
       )}
-
-      {/* Scroll indicator for desktop */}
-      <div className="hidden sm:block absolute bottom-3 left-4 right-4 h-[3px] bg-gray-200 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-[#008080] transition-all duration-200"
-          style={{ width: `${scrollProgress}%` }}
-        />
-      </div>
     </div>
   );
 }

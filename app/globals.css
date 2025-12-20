@@ -6,7 +6,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --accent: #ffde59; /* 🌟 Direct2Kariakoo yellow */
+  --accent: #ffde59;
   --text-dark: #232742;
   --border-color: #e5e7eb;
   --gray-bg: #f6f6f6;
@@ -37,12 +37,13 @@
 /* =========
    Global Base
    ========= */
-body {
+  body {
   background: var(--background);
   color: var(--foreground);
   font-family: "Inter", Arial, Helvetica, sans-serif;
   transition: var(--transition);
   min-height: 100vh;
+  overflow-x: hidden; /* ✅ THIS IS THE FIX */
 }
 
 /* Scrollbar cleanup */

@@ -3,121 +3,106 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-interface Props {
-  categories: { id: number; name: string }[];
-  activeCategory: { id: number; name: string } | null;
-  onHover: (cat: any) => void;
-  onLeave: () => void;
+/* ================= TYPES ================= */
+interface Category {
+  id: number;
+  name: string;
 }
 
+interface Props {
+  categories: Category[];
+  activeCategory: Category | null; // comes from parent
+  onSelect: (cat: Category) => void; // 🔥 single source of truth
+}
+
+/* ================= COMPONENT ================= */
 export default function CategoryNav({
   categories,
   activeCategory,
-  onHover,
-  onLeave,
+  onSelect,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
 
-  /* -------------------------------------------------------------------------- */
-  /* 🔹 Default select first category on mount                                  */
-  /* -------------------------------------------------------------------------- */
+  /* ================= DEFAULT SELECT ================= */
   useEffect(() => {
-    if (categories.length > 0 && selectedCategory === null) {
-      setSelectedCategory(categories[0].id);
-      onHover(categories[0]);
+    if (categories.length && !activeCategory) {
+      onSelect(categories[0]); // ✅ default category
     }
-  }, [categories, selectedCategory, onHover]);
+  }, [categories, activeCategory, onSelect]);
 
-  /* -------------------------------------------------------------------------- */
-  /* 🔹 Keep the selected category always visible                               */
-  /* -------------------------------------------------------------------------- */
+  /* ================= KEEP ACTIVE VISIBLE ================= */
   useEffect(() => {
-    if (selectedCategory !== null) {
-      const el = document.getElementById(`cat-${selectedCategory}`);
-      el?.scrollIntoView({ behavior: "smooth", inline: "center" });
+    if (activeCategory) {
+      document
+        .getElementById(`cat-${activeCategory.id}`)
+        ?.scrollIntoView({ behavior: "smooth", inline: "center" });
     }
-  }, [selectedCategory]);
+  }, [activeCategory]);
 
-  /* -------------------------------------------------------------------------- */
-  /* 🔹 Check scroll visibility                                                 */
-  /* -------------------------------------------------------------------------- */
+  /* ================= SCROLL CHECK ================= */
   const checkScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 0);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 5);
+    setCanScrollLeft(el.scrollLeft > 10);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 10);
   };
 
-  /* -------------------------------------------------------------------------- */
-  /* 🔹 Scroll handler                                                          */
-  /* -------------------------------------------------------------------------- */
   const scroll = (dir: "left" | "right") => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const amount = 250;
-    el.scrollBy({
-      left: dir === "left" ? -amount : amount,
+    scrollRef.current?.scrollBy({
+      left: dir === "left" ? -260 : 260,
       behavior: "smooth",
     });
   };
 
-  /* -------------------------------------------------------------------------- */
-  /* 🔹 Add scroll listeners                                                    */
-  /* -------------------------------------------------------------------------- */
   useEffect(() => {
     checkScroll();
     const el = scrollRef.current;
     if (!el) return;
+
     el.addEventListener("scroll", checkScroll);
     window.addEventListener("resize", checkScroll);
+
     return () => {
       el.removeEventListener("scroll", checkScroll);
       window.removeEventListener("resize", checkScroll);
     };
   }, []);
 
-  /* -------------------------------------------------------------------------- */
-  /* 🔹 Component UI                                                            */
-  /* -------------------------------------------------------------------------- */
+  /* ================= UI ================= */
   return (
-    <div
-      className="relative bg-white border-t border-gray-200 shadow-sm select-none"
-      onMouseLeave={onLeave}
-    >
-      {/* Left Arrow */}
+    <div className="relative bg-white border-t border-gray-200 h-[48px] flex items-center select-none">
+      {/* LEFT ARROW */}
       {canScrollLeft && (
         <button
           onClick={() => scroll("left")}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-md hover:bg-gray-100 p-1 rounded-full"
+          className="absolute left-0 h-full w-10 flex items-center justify-center bg-gradient-to-r from-white to-transparent z-10"
         >
           <ChevronLeft className="w-5 h-5 text-gray-700" />
         </button>
       )}
 
-      {/* Categories */}
+      {/* CATEGORIES */}
       <div
         ref={scrollRef}
-        className="flex overflow-x-auto scrollbar-hide gap-6 text-gray-800 font-semibold text-sm py-2 px-10 scroll-smooth"
+        className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-12 flex-1"
       >
         {categories.map((cat) => {
-          const isActive =
-            activeCategory?.id === cat.id || selectedCategory === cat.id;
+          const isActive = activeCategory?.id === cat.id;
+
           return (
             <button
               key={cat.id}
               id={`cat-${cat.id}`}
-              onClick={() => {
-                setSelectedCategory(cat.id);
-                onHover(cat);
-              }}
-              className={`relative flex-shrink-0 px-1 pb-1 transition ${
-                isActive
-                  ? "text-black border-b-2 border-black"
-                  : "text-gray-800 hover:text-black"
-              }`}
+              onClick={() => onSelect(cat)} // ✅ ONLY CLICK CONTROLS DATA
+              className={`whitespace-nowrap px-3 py-1.5 rounded-full text-sm font-semibold transition
+                ${
+                  isActive
+                    ? "bg-gray-100 text-black"
+                    : "text-black hover:bg-gray-100"
+                }
+              `}
             >
               {cat.name}
             </button>
@@ -125,11 +110,19 @@ export default function CategoryNav({
         })}
       </div>
 
-      {/* Right Arrow */}
+      {/* BRAND BADGE */}
+      <div className="hidden md:flex items-center gap-2 pr-4">
+        <span className="px-2 py-0.5 text-xs font-bold rounded border border-green-600 text-black">
+          vip<span className="text-yellow-500">uri</span>
+        </span>
+        <span className="text-xs font-bold text-green-600">TRY FREE</span>
+      </div>
+
+      {/* RIGHT ARROW */}
       {canScrollRight && (
         <button
           onClick={() => scroll("right")}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-md hover:bg-gray-100 p-1 rounded-full"
+          className="absolute right-0 h-full w-10 flex items-center justify-center bg-gradient-to-l from-white to-transparent z-10"
         >
           <ChevronRight className="w-5 h-5 text-gray-700" />
         </button>

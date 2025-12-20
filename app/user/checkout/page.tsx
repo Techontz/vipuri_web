@@ -27,7 +27,7 @@ export default function CheckoutPage() {
   const [selectedNetwork, setSelectedNetwork] = useState("M-Pesa");
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL;
-  const businessName = "Direct2Kariakoo";
+  const businessName = "Vipuri";
 
   // Cache vendors to prevent refetch
   const cachedVendors = typeof window !== "undefined" ? sessionStorage.getItem("vendors_cache") : null;

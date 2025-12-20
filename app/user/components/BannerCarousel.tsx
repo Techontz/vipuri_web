@@ -1,165 +1,232 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import axios from "axios";
 
 /* -------------------------------------------------------------------------- */
-/* Interfaces                                                                 */
+/* Types                                                                      */
 /* -------------------------------------------------------------------------- */
 interface Banner {
   id: number;
   image: string;
   alt?: string;
   link?: string;
+  type: "top" | "main" | "side";
 }
 
 /* -------------------------------------------------------------------------- */
-/* Cache Constants                                                            */
+/* Cache                                                                      */
 /* -------------------------------------------------------------------------- */
-const BANNER_CACHE_KEY = "d2k_cached_banners";
-const BANNER_CACHE_TIME = "d2k_banner_cache_time";
-const CACHE_TTL = 1000 * 60 * 60 * 12; // 12 hours
+const CACHE_KEY = "vipuri_banners_v4";
+const CACHE_TIME = "vipuri_banners_time_v4";
+const CACHE_TTL = 1000 * 60 * 60 * 12;
 
 /* -------------------------------------------------------------------------- */
 /* Component                                                                  */
 /* -------------------------------------------------------------------------- */
-export default function BannerCarousel() {
-  const [banners, setBanners] = useState<Banner[]>(() => {
-    if (typeof window !== "undefined") {
-      const cached = localStorage.getItem(BANNER_CACHE_KEY);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed)) return parsed;
-        } catch {}
-      }
-    }
-    return [];
-  });
+export default function BannerSection() {
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [currentTop, setCurrentTop] = useState(0);
+  const [currentMain, setCurrentMain] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [brokenImages, setBrokenImages] = useState<Record<number, boolean>>({});
 
-  const [current, setCurrent] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isClient, setIsClient] = useState(false);
-
-  /* -------------------------------------------------------------------------- */
-  /* 🧠 Mark client ready (prevent SSR hydration error)                         */
-  /* -------------------------------------------------------------------------- */
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  /* -------------------------------------------------------------------------- */
-  /* 🧠 Fetch banners with cache                                                */
-  /* -------------------------------------------------------------------------- */
+  /* -------------------- Fetch + Cache -------------------- */
   useEffect(() => {
     const now = Date.now();
-    const cachedTime = localStorage.getItem(BANNER_CACHE_TIME);
+    const cached = localStorage.getItem(CACHE_KEY);
+    const cachedTime = localStorage.getItem(CACHE_TIME);
 
-    if (cachedTime && now - parseInt(cachedTime) < CACHE_TTL) return;
+    if (cached && cachedTime && now - Number(cachedTime) < CACHE_TTL) {
+      setBanners(JSON.parse(cached));
+      setLoading(false);
+      return;
+    }
 
     axios
       .get(`${process.env.NEXT_PUBLIC_API_URL}/banners`)
       .then((res) => {
         const data = Array.isArray(res.data) ? res.data : [];
-        if (data.length > 0) {
-          setBanners(data);
-          localStorage.setItem(BANNER_CACHE_KEY, JSON.stringify(data));
-          localStorage.setItem(BANNER_CACHE_TIME, now.toString());
-        }
+        setBanners(data);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        localStorage.setItem(CACHE_TIME, now.toString());
       })
-      .catch((err) => console.error("⚠️ Failed to refresh banners:", err));
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
-  /* -------------------------------------------------------------------------- */
-  /* 🎞️ Auto-slide logic                                                      */
-  /* -------------------------------------------------------------------------- */
+  /* -------------------- Groups -------------------- */
+  const topBanners = banners.filter((b) => b.type === "top");
+  const mainBanners = banners.filter((b) => b.type === "main");
+  const sideBanner = banners.find((b) => b.type === "side");
+
+  /* -------------------- Auto Slide -------------------- */
   useEffect(() => {
-    if (isPaused || banners.length === 0) return;
-    const interval = setInterval(() => {
-      setCurrent((prev) => (prev === banners.length - 1 ? 0 : prev + 1));
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [isPaused, banners]);
+    if (topBanners.length < 2) return;
+    const i = setInterval(
+      () => setCurrentTop((p) => (p + 1) % topBanners.length),
+      3500
+    );
+    return () => clearInterval(i);
+  }, [topBanners]);
 
-  if (!isClient || banners.length === 0) return null;
+  useEffect(() => {
+    if (mainBanners.length < 2) return;
+    const i = setInterval(
+      () => setCurrentMain((p) => (p + 1) % mainBanners.length),
+      4000
+    );
+    return () => clearInterval(i);
+  }, [mainBanners]);
+
+  /* -------------------- Loading -------------------- */
+  if (loading) {
+    return <div className="w-full h-[260px] bg-gray-200 animate-pulse" />;
+  }
+
+  if (!banners.length) {
+    return (
+      <div className="w-full h-[260px] flex items-center justify-center text-gray-400">
+        No banners available
+      </div>
+    );
+  }
 
   /* -------------------------------------------------------------------------- */
-  /* 🎨 Layout (no rounded corners, full width)                                 */
+  /* UI                                                                        */
   /* -------------------------------------------------------------------------- */
   return (
-    <div
-      className="
-        relative 
-        w-screen             /* full-edge width */
-        sm:w-full  
-        h-[180px] sm:h-[250px] md:h-[320px]  /* responsive heights */
-        overflow-hidden select-none
-        mx-auto               /* center alignment for larger screens */
-      "
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-    >
-      {/* 🖼️ Banners */}
-      {banners.map((banner, index) => (
-        <div
-          key={banner.id}
-          className={`absolute inset-0 transition-opacity duration-700 ${
-            index === current ? "opacity-100 z-10" : "opacity-0 z-0"
-          }`}
-        >
-          <a href={banner.link || "#"} target="_blank" rel="noopener noreferrer">
-            <Image
-              src={
-                banner.image.startsWith("http")
-                  ? banner.image
-                  : `${process.env.NEXT_PUBLIC_STORAGE_URL}/${banner.image}`
-              }
-              alt={banner.alt || "Banner"}
-              fill
-              className="object-cover"
-              priority={index === 0}
-            />
-          </a>
+    <section className="w-full bg-white">
+      {/* ================= TOP THIN ================= */}
+      {topBanners.length > 0 && (
+        <div className="relative w-full h-[44px] sm:h-[64px] overflow-hidden bg-gray-100">
+          {topBanners.map((b, i) => (
+            <div
+              key={b.id}
+              className={`absolute inset-0 transition-opacity duration-700 ${
+                i === currentTop ? "opacity-100 z-10" : "opacity-0 z-0"
+              }`}
+            >
+              {!brokenImages[b.id] ? (
+                <Image
+                  src={b.image}
+                  alt={b.alt || ""}
+                  fill
+                  className="object-cover"
+                  priority={i === 0}
+                  onError={() =>
+                    setBrokenImages((p) => ({ ...p, [b.id]: true }))
+                  }
+                />
+              ) : (
+                <GreyPlaceholder />
+              )}
+            </div>
+          ))}
         </div>
-      ))}
+      )}
 
-      {/* 🧭 Arrows (desktop only) */}
-      <div className="hidden md:flex absolute inset-0 justify-between items-center px-4 z-20">
-        <button
-          onClick={() =>
-            setCurrent((prev) => (prev === 0 ? banners.length - 1 : prev - 1))
-          }
-          className="bg-white/90 hover:bg-white text-gray-800 rounded-full w-10 h-10 flex items-center justify-center shadow-md transition-all active:scale-90"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
+      {/* ================= MAIN + SIDE (ALWAYS SAME LAYOUT) ================= */}
+      <div className="w-full grid grid-cols-4 gap-[2px] mt-[2px]">
+        {/* MAIN (3/4 width) */}
+        {mainBanners.length > 0 && (
+          <div className="relative col-span-3 h-[160px] sm:h-[220px] md:h-[360px] bg-gray-100 overflow-hidden">
+            {mainBanners.map((b, i) => (
+              <div
+                key={b.id}
+                className={`absolute inset-0 transition-opacity duration-700 ${
+                  i === currentMain ? "opacity-100 z-10" : "opacity-0 z-0"
+                }`}
+              >
+                {!brokenImages[b.id] ? (
+                  <Image
+                    src={b.image}
+                    alt={b.alt || ""}
+                    fill
+                    className="object-cover"
+                    onError={() =>
+                      setBrokenImages((p) => ({ ...p, [b.id]: true }))
+                    }
+                  />
+                ) : (
+                  <GreyPlaceholder />
+                )}
+              </div>
+            ))}
 
-        <button
-          onClick={() =>
-            setCurrent((prev) =>
-              prev === banners.length - 1 ? 0 : prev + 1
-            )
-          }
-          className="bg-white/90 hover:bg-white text-gray-800 rounded-full w-10 h-10 flex items-center justify-center shadow-md transition-all active:scale-90"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
+            {mainBanners.length > 1 && (
+              <>
+                <Arrow
+                  left
+                  onClick={() =>
+                    setCurrentMain((p) =>
+                      p === 0 ? mainBanners.length - 1 : p - 1
+                    )
+                  }
+                />
+                <Arrow
+                  onClick={() =>
+                    setCurrentMain((p) =>
+                      p === mainBanners.length - 1 ? 0 : p + 1
+                    )
+                  }
+                />
+              </>
+            )}
+          </div>
+        )}
+
+        {/* SIDE (1/4 width) */}
+        {sideBanner && (
+          <div className="relative col-span-1 h-[160px] sm:h-[220px] md:h-[360px] bg-gray-100 overflow-hidden">
+            {!brokenImages[sideBanner.id] ? (
+              <Image
+                src={sideBanner.image}
+                alt={sideBanner.alt || ""}
+                fill
+                className="object-cover"
+                onError={() =>
+                  setBrokenImages((p) => ({ ...p, [sideBanner.id]: true }))
+                }
+              />
+            ) : (
+              <GreyPlaceholder />
+            )}
+          </div>
+        )}
       </div>
+    </section>
+  );
+}
 
-      {/* 🟡 Dots */}
-      <div className="absolute bottom-3 left-0 right-0 z-30 flex justify-center gap-2">
-        {banners.map((_, i) => (
-          <div
-            key={i}
-            onClick={() => setCurrent(i)}
-            className={`h-[3px] rounded-full cursor-pointer transition-all duration-300 ${
-              i === current ? "bg-yellow-400 w-6" : "bg-gray-300 w-4 hover:bg-gray-400"
-            }`}
-          />
-        ))}
-      </div>
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+function GreyPlaceholder() {
+  return (
+    <div className="w-full h-full bg-gray-200 animate-pulse flex items-center justify-center text-gray-400 text-xs">
+      Banner
     </div>
+  );
+}
+
+function Arrow({
+  left,
+  onClick,
+}: {
+  left?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`absolute ${
+        left ? "left-1 sm:left-2" : "right-1 sm:right-2"
+      } top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center z-20`}
+    >
+      {left ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+    </button>
   );
 }

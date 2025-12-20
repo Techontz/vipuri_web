@@ -10,12 +10,14 @@ import {
   User,
   Menu,
   X,
+  Heart,
 } from "lucide-react";
 import SearchBar from "./SearchBar";
 import CategoryNav from "./CategoryNav";
 import axios from "axios";
 import { listenEvent } from "@/lib/eventBus";
 
+/* ================= TYPES ================= */
 interface Category {
   id: number;
   name: string;
@@ -33,26 +35,33 @@ interface HeaderProps {
   onSubcategorySelect?: (subcategoryId: number) => void;
 }
 
-// ✅ Cache keys
+/* ================= CACHE ================= */
 const CAT_CACHE_KEY = "d2k_categories_cache";
 const CAT_CACHE_TIME = "d2k_categories_cache_time";
-const CAT_CACHE_EXPIRY = 1000 * 60 * 60 * 24; // 24 hours
+const CAT_CACHE_EXPIRY = 1000 * 60 * 60 * 24;
 
+/* ================= COMPONENT ================= */
 export default function Header({
   onCategorySelect,
   onSubcategorySelect,
 }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
+
+  const [showMenu, setShowMenu] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCats, setLoadingCats] = useState(true);
+
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [showMenu, setShowMenu] = useState(false);
+  const [selectedCategory, setSelectedCategory] =
+    useState<Category | null>(null);
+
   const [cartCount, setCartCount] = useState(0);
   const [orderCount, setOrderCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+
   const [location, setLocation] = useState<LocationData>({
     city: "Dar es Salaam",
     country: "Tanzania",
@@ -60,7 +69,7 @@ export default function Header({
   });
   const [loadingLocation, setLoadingLocation] = useState(true);
 
-  /* ------------------------- 📍 Location Fetch ----------------------------- */
+  /* ================= LOCATION ================= */
   useEffect(() => {
     if (!navigator.geolocation) {
       setLoadingLocation(false);
@@ -69,95 +78,82 @@ export default function Header({
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const { latitude, longitude } = pos.coords;
         try {
           const res = await fetch(
-            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${pos.coords.latitude},${pos.coords.longitude}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
           );
           const data = await res.json();
-          if (data.results?.length > 0) {
+
+          if (data.results?.length) {
             const comp = data.results[0].address_components;
-            const cityObj =
-              comp.find((c: any) => c.types.includes("locality")) ||
-              comp.find((c: any) =>
-                c.types.includes("administrative_area_level_1")
-              );
+            const city =
+              comp.find((c: any) => c.types.includes("locality"))?.long_name ||
+              "City";
             const countryObj = comp.find((c: any) =>
               c.types.includes("country")
             );
-            const city = cityObj?.long_name || "Unknown City";
-            const country = countryObj?.long_name || "Unknown Country";
-            const code = countryObj?.short_name?.toLowerCase() || "tz";
-            setLocation({ city, country, countryCode: code });
+
+            setLocation({
+              city,
+              country: countryObj?.long_name || "Country",
+              countryCode:
+                countryObj?.short_name?.toLowerCase() || "tz",
+            });
           }
-        } catch {
-          console.warn("Location fetch failed");
-        } finally {
-          setLoadingLocation(false);
-        }
+        } catch {}
+        setLoadingLocation(false);
       },
-      () => setLoadingLocation(false),
-      { enableHighAccuracy: true }
+      () => setLoadingLocation(false)
     );
   }, []);
 
-  /* -------------------------- 🗂️ Fetch Categories -------------------------- */
+  /* ================= CATEGORIES ================= */
   useEffect(() => {
     let cancelled = false;
 
-    const fetchCategories = async () => {
+    const loadCats = async () => {
       try {
         const cached = localStorage.getItem(CAT_CACHE_KEY);
         const cachedTime = localStorage.getItem(CAT_CACHE_TIME);
-        const now = Date.now();
 
-        // ✅ Load from cache immediately
-        if (cached && cachedTime && now - parseInt(cachedTime) < CAT_CACHE_EXPIRY) {
-          const parsed = JSON.parse(cached);
-          if (!cancelled) {
-            setCategories(parsed);
-            setLoadingCats(false);
-          }
+        if (cached && cachedTime && Date.now() - +cachedTime < CAT_CACHE_EXPIRY) {
+          setCategories(JSON.parse(cached));
+          setLoadingCats(false);
         }
 
-        // ✅ Background refresh
         const res = await axios.get(
           `${process.env.NEXT_PUBLIC_API_URL}/categories-with-subcategories`
         );
-        const cats = Array.isArray(res.data) ? res.data : [];
 
         if (!cancelled) {
-          setCategories(cats);
-          localStorage.setItem(CAT_CACHE_KEY, JSON.stringify(cats));
-          localStorage.setItem(CAT_CACHE_TIME, now.toString());
+          setCategories(res.data || []);
+          localStorage.setItem(CAT_CACHE_KEY, JSON.stringify(res.data || []));
+          localStorage.setItem(CAT_CACHE_TIME, Date.now().toString());
           setLoadingCats(false);
         }
-      } catch (err) {
-        console.error("Failed to fetch categories:", err);
+      } catch {
         setLoadingCats(false);
       }
     };
 
-    fetchCategories();
+    loadCats();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  /* --------------------- 🛒 Fetch Counts & Live Sync ---------------------- */
+  /* ================= COUNTS ================= */
   const updateCounts = async () => {
-    // 🚫 Skip updates while user is navigating
     if (isNavigating) return;
-  
+
     try {
       const token = localStorage.getItem("token");
       const userId = localStorage.getItem("userId");
       if (!token || !userId) return;
-  
+
       const headers = { Authorization: `Bearer ${token}` };
-  
-      // ✅ Fetch all counts
-      const [msgRes, orderRes, cartRes] = await Promise.allSettled([
+
+      const [msg, ord, cart] = await Promise.allSettled([
         axios.get(
           `${process.env.NEXT_PUBLIC_API_URL}/messages/count-unread-messages/${userId}`,
           { headers }
@@ -165,215 +161,103 @@ export default function Header({
         axios.get(`${process.env.NEXT_PUBLIC_API_URL}/orders/count`, { headers }),
         axios.get(`${process.env.NEXT_PUBLIC_API_URL}/cart`, { headers }),
       ]);
-  
-      // ✅ Update message count
-      if (msgRes.status === "fulfilled") {
-        setUnreadCount(msgRes.value.data.count || 0);
-      }
-  
-      // ✅ Update order count (store locally too)
-      if (orderRes.status === "fulfilled") {
-        const count = orderRes.value.data.count || 0;
-        setOrderCount(count);
-        localStorage.setItem("orders_count", String(count));
-      }
-  
-      // ✅ Update cart count
-      if (cartRes.status === "fulfilled") {
-        const items =
-          cartRes.value.data.items || cartRes.value.data.cart?.items || [];
-        setCartCount(items.length || 0);
-        localStorage.setItem("cart_items", JSON.stringify(items));
-      }
-    } catch (err) {
-      console.error("Failed to update counts:", err);
-    }
+
+      if (msg.status === "fulfilled") setUnreadCount(msg.value.data.count || 0);
+      if (ord.status === "fulfilled") setOrderCount(ord.value.data.count || 0);
+      if (cart.status === "fulfilled")
+        setCartCount(cart.value.data.items?.length || 0);
+    } catch {}
   };
-  
+
   useEffect(() => {
-    // 🚫 Skip updates on cart or checkout pages to prevent re-render navigation loop
-    if (pathname?.includes("/user/cart") || pathname?.includes("/user/checkout")) {
-      return;
-    }
-  
-    const cachedCart = localStorage.getItem("cart_items");
-    if (cachedCart) setCartCount(JSON.parse(cachedCart).length || 0);
-  
-    const cachedOrders = localStorage.getItem("orders_count");
-    if (cachedOrders) setOrderCount(Number(cachedOrders));
-  
     updateCounts();
-  
-    const offCart = listenEvent("cart-updated", updateCounts);
-    const offOrders = listenEvent("orders-updated", updateCounts);
-  
-    const interval = setInterval(() => {
-      if (!isNavigating) updateCounts();
-    }, 20000);
-  
+    const off1 = listenEvent("cart-updated", updateCounts);
+    const off2 = listenEvent("orders-updated", updateCounts);
     return () => {
-      offCart();
-      offOrders();
-      clearInterval(interval);
+      off1();
+      off2();
     };
-  }, [pathname]); // ✅ Stable dependency
-  
-  /* ----------------------------- 🧠 Render --------------------------------- */
+  }, [pathname]);
+
+  /* ================= RENDER ================= */
   return (
-    <header className="w-full sticky top-0 z-50 bg-white shadow-sm">
-      {/* === Yellow Top Bar === */}
-      <div className="bg-[#FFD100] px-3 md:px-10 py-3 flex items-center justify-between">
-        {/* Left: Logo + Location */}
-        <div className="flex items-center gap-4 md:gap-6 flex-shrink-0">
-          <button onClick={() => setShowMenu(!showMenu)} className="md:hidden">
-            {showMenu ? <X size={24} /> : <Menu size={24} />}
+    <header className="sticky top-0 z-50 w-full">
+      {/* ================= YELLOW BAR ================= */}
+      <div className="bg-[#FFD100] h-[64px] px-4 md:px-8 flex items-center justify-between gap-4">
+        {/* LEFT */}
+        <div className="flex items-center gap-4">
+          <button className="md:hidden" onClick={() => setShowMenu(!showMenu)}>
+            {showMenu ? <X /> : <Menu />}
           </button>
 
           <Image
-            src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/logooo.png`}
-            alt="Direct2Kariakoo"
-            width={170}
-            height={38}
-            className="cursor-pointer"
+            src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/vipuri.png`}
+            alt="Vipuri"
+            width={120}
+            height={32}
             onClick={() => router.push("/user")}
+            className="cursor-pointer"
           />
 
           {!loadingLocation && (
-            <div className="hidden md:flex items-center gap-2 text-sm text-gray-800 font-medium">
+            <div className="hidden md:flex items-center gap-2 text-sm">
               <Image
                 src={`https://flagcdn.com/24x18/${location.countryCode}.png`}
-                alt={location.country}
                 width={24}
                 height={18}
+                alt="flag"
               />
-              <span>Deliver to</span>
+              <span className="text-gray-700">Deliver to</span>
               <span className="font-semibold">{location.city}</span>
             </div>
           )}
         </div>
 
-        {/* === SearchBar === */}
-        <div className="hidden md:flex justify-center flex-1 px-10">
-          <div className="w-full max-w-[1000px]">
+        {/* CENTER SEARCH */}
+        <div className="hidden md:flex flex-1 justify-center">
+          <div className="w-full max-w-[900px]">
             <SearchBar />
           </div>
         </div>
 
-        {/* === Right Icons === */}
-        <div className="flex items-center gap-4 md:gap-6 flex-shrink-0">
-          {/* Messages */}
-          <button
-            onClick={() => router.push("/user/messages")}
-            className="relative text-gray-700 hover:text-gray-900"
-          >
-            <MessageSquare size={22} />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-2 bg-red-600 text-white text-[10px] rounded-full px-1.5 font-semibold">
-                {unreadCount}
-              </span>
-            )}
+        {/* RIGHT */}
+        <div className="flex items-center gap-4">
+          <button className="text-sm font-medium">العربية</button>
+
+          <button onClick={() => router.push("/login")} className="flex items-center gap-1">
+            <User size={18} />
+            <span className="hidden md:inline text-sm">Log in</span>
           </button>
 
-          {/* Orders */}
-          <button
-            onClick={() => router.push("/user/orders")}
-            className="relative text-gray-700 hover:text-gray-900"
-          >
-            <Package size={22} />
-            {orderCount > 0 && (
-              <span className="absolute -top-1 -right-2 bg-blue-600 text-white text-[10px] rounded-full px-1.5 font-semibold">
-                {orderCount}
-              </span>
-            )}
-          </button>
+          <Heart size={20} className="cursor-pointer" />
 
-          {/* 🛒 Cart */}
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              if (isNavigating) return;
-              setIsNavigating(true);
-              router.push("/user/cart");
-              setTimeout(() => setIsNavigating(false), 1500); // allow navigation to settle
-            }}
-            className="relative text-gray-700 hover:text-gray-900 focus:outline-none"
+            onClick={() => router.push("/user/cart")}
+            className="relative"
           >
             <ShoppingCart size={22} />
             {cartCount > 0 && (
-              <span className="absolute -top-1 -right-2 bg-green-600 text-white text-[10px] rounded-full px-1.5 font-semibold">
+              <span className="absolute -top-1 -right-2 bg-red-600 text-white text-[10px] px-1.5 rounded-full">
                 {cartCount}
               </span>
             )}
           </button>
-
-          {/* Account */}
-          <button
-            onClick={() => router.push("/user/profile")}
-            className="hidden md:flex items-center gap-2 text-gray-700 hover:text-gray-900"
-          >
-            <User size={20} />
-            <span className="text-sm font-medium">Account</span>
-          </button>
         </div>
       </div>
 
-      {/* === Category Nav === */}
-      <div className="bg-white border-t border-gray-200 shadow-sm min-h-[46px]">
-        {loadingCats ? (
-          <div className="flex gap-6 px-10 py-2 animate-pulse">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-3 w-20 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        ) : (
+      {/* ================= CATEGORIES ================= */}
+      <div className="bg-white border-t shadow-sm">
+        {!loadingCats && (
           <CategoryNav
-            categories={categories}
-            activeCategory={activeCategory || selectedCategory}
-            onHover={(cat) => {
-              setActiveCategory(cat);
-              onCategorySelect?.(cat);
-            }}
-            onLeave={() => setActiveCategory(selectedCategory)}
-          />
+          categories={categories}
+          activeCategory={selectedCategory}
+          onSelect={(cat) => {
+            setSelectedCategory(cat);
+            onCategorySelect?.(cat); // 🔥 passes to HomePage
+          }}
+        />        
         )}
       </div>
-
-      {/* === Mobile Drawer === */}
-      {showMenu && (
-        <div className="md:hidden bg-white border-t border-gray-200 shadow-lg py-4 px-5 animate-fadeIn">
-          <div className="mb-4">
-            <SearchBar />
-          </div>
-          <div className="flex flex-col mt-2 space-y-2">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => {
-                  setSelectedCategory(cat);
-                  router.push(`/user/category?id=${cat.id}`);
-                  setShowMenu(false);
-                }}
-                className={`text-left font-medium transition ${
-                  selectedCategory?.id === cat.id
-                    ? "text-black border-b border-black"
-                    : "text-gray-700 hover:text-black"
-                }`}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-6px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fadeIn { animation: fadeIn 0.25s ease-in-out; }
-      `}</style>
     </header>
   );
 }

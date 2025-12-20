@@ -7,7 +7,7 @@ export default function LandingPage() {
   return (
     <main className="flex flex-col items-center justify-center min-h-screen bg-white text-center p-6">
       <img src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/logo.png`} alt="Logo" className="w-28 h-28 mb-6" />
-      <h1 className="text-2xl font-bold text-gray-900">Welcome to Direct2Kariakoo</h1>
+      <h1 className="text-2xl font-bold text-gray-900">Welcome to Vipuri</h1>
       <p className="text-gray-500 mt-2 max-w-md">
         Shop smart, fast & direct from Kariakoo vendors.
       </p>

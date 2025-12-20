@@ -19,7 +19,7 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 // 🌍 SEO + Metadata
 export const metadata: Metadata = {
-  title: "Direct2Kariakoo",
+  title: "Vipuri",
   description: "Shop smart, fast, and direct from Kariakoo vendors.",
   icons: {
     icon: [
@@ -53,8 +53,8 @@ export default function RootLayout({
       </head>
 
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-gray-900`}
-      >
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-gray-900 overflow-x-hidden`}
+        >
         {children}
       </body>
     </html>

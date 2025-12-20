@@ -136,10 +136,10 @@ export default function Footer() {
                 HELP CENTER
               </p>
               <a
-                href="mailto:help@direct2kariakoo.com"
+                href="mailto:help@vipuri.com"
                 className="text-sm text-gray-800 font-medium hover:underline"
               >
-                help.direct2kariakoo.com
+                help.vipuri.com
               </a>
             </div>
           </div>
@@ -154,10 +154,10 @@ export default function Footer() {
                 EMAIL SUPPORT
               </p>
               <a
-                href="mailto:care@direct2kariakoo.com"
+                href="mailto:care@vipuri.com"
                 className="text-sm text-gray-800 font-medium hover:underline"
               >
-                care@direct2kariakoo.com
+                care@vipuri.com
               </a>
             </div>
           </div>
@@ -230,7 +230,7 @@ export default function Footer() {
 
       {/* ==================== COPYRIGHT ==================== */}
       <div className="bg-gray-100 text-center py-6 text-xs sm:text-sm text-gray-600 border-t flex flex-col md:flex-row items-center justify-center gap-3 md:gap-6 pb-24 md:pb-8">
-        <p>© 2025 Direct2Kariakoo. All Rights Reserved.</p>
+        <p>© 2025 Vipuri. All Rights Reserved.</p>
 
         <div className="flex items-center flex-wrap justify-center gap-3 md:gap-4">
           <Image src="/payments/mpesa.png" alt="M-Pesa" width={40} height={20} className="object-contain" />

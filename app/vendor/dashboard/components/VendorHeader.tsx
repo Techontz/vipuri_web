@@ -124,8 +124,8 @@ export default function VendorHeader({ vendor: propVendor }: { vendor?: any }) {
           </button>
 
           <Image
-            src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/logooo.png`}
-            alt="Direct2Kariakoo Vendor"
+            src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/vipuri.png`}
+            alt="Vipuri Vendor"
             width={165}
             height={38}
             className="cursor-pointer"
