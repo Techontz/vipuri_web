@@ -34,7 +34,10 @@ export default function ProductReviewsSection({
   const [showForm, setShowForm] = useState(false);
   const [rating, setRating] = useState<number>(5);
   const [comment, setComment] = useState<string>("");
-  const [message, setMessage] = useState<{ type: "success" | "info" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "info" | "error";
+    text: string;
+  } | null>(null);
 
   // --------------------------------------------------------
   // Fetch reviews from backend
@@ -83,12 +86,14 @@ export default function ProductReviewsSection({
         }
       );
 
-      setMessage({ type: "success", text: "✅ Review submitted successfully!" });
+      setMessage({
+        type: "success",
+        text: "✅ Review submitted successfully!",
+      });
       setComment("");
       setRating(5);
       setShowForm(false);
 
-      // Refresh reviews
       const res = await axios.get(
         `${process.env.NEXT_PUBLIC_API_URL}/products/${productId}`
       );
@@ -119,21 +124,26 @@ export default function ProductReviewsSection({
   };
 
   // --------------------------------------------------------
-  // Helpers
+  // Helpers (⭐ ONLY STAR FIX HERE)
   // --------------------------------------------------------
-  const renderStars = (count: number, filledColor = "text-yellow-400") => (
+  const renderStars = (count: number) => (
     <div className="flex">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Star
-          key={i}
-          size={15}
-          className={
-            i < count
-              ? `${filledColor} fill-yellow-400 drop-shadow-sm`
-              : "text-gray-300"
-          }
-        />
-      ))}
+      {Array.from({ length: 5 }).map((_, i) => {
+        const filled = i < count;
+        return (
+          <Star
+            key={i}
+            size={15}
+            className="rating-star"
+            fill={filled ? "#facc15" : "none"}
+            stroke={filled ? "#facc15" : "#d1d5db"}
+            style={{
+              fill: filled ? "#facc15" : "none",
+              stroke: filled ? "#facc15" : "#d1d5db",
+            }}
+          />
+        );
+      })}
     </div>
   );
 
@@ -182,7 +192,6 @@ export default function ProductReviewsSection({
   // --------------------------------------------------------
   return (
     <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-50">
-      {/* Header */}
       <h3 className="font-semibold text-gray-900 mb-3 text-lg">
         Ratings & Reviews ({reviewCount})
       </h3>
@@ -194,7 +203,9 @@ export default function ProductReviewsSection({
         </div>
         <div>
           {renderStars(Math.round(average))}
-          <p className="text-sm text-gray-500 mt-0.5">{reviewCount} reviews</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {reviewCount} reviews
+          </p>
         </div>
       </div>
 
@@ -250,18 +261,23 @@ export default function ProductReviewsSection({
             Your Rating
           </p>
           <div className="flex justify-center mb-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star
-                key={i}
-                size={28}
-                onClick={() => setRating(i + 1)}
-                className={`cursor-pointer drop-shadow-sm ${
-                  i < rating
-                    ? "text-yellow-400 fill-yellow-400"
-                    : "text-gray-300"
-                }`}
-              />
-            ))}
+            {Array.from({ length: 5 }).map((_, i) => {
+              const filled = i < rating;
+              return (
+                <Star
+                  key={i}
+                  size={28}
+                  onClick={() => setRating(i + 1)}
+                  className="rating-star cursor-pointer"
+                  fill={filled ? "#facc15" : "none"}
+                  stroke={filled ? "#facc15" : "#d1d5db"}
+                  style={{
+                    fill: filled ? "#facc15" : "none",
+                    stroke: filled ? "#facc15" : "#d1d5db",
+                  }}
+                />
+              );
+            })}
           </div>
 
           <textarea
@@ -270,7 +286,7 @@ export default function ProductReviewsSection({
             placeholder="Write your review..."
             className="w-full border border-gray-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
             rows={3}
-          ></textarea>
+          />
 
           <button
             onClick={handleSubmitReview}

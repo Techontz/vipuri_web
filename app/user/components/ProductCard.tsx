@@ -2,248 +2,285 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
-import { ShoppingCart, CheckCircle2, Star, Heart } from "lucide-react";
+import {
+  ShoppingCart,
+  CheckCircle2,
+  Star,
+  Heart,
+  X,
+} from "lucide-react";
 import { updateCartCache } from "@/lib/cartUtils";
+import AuthModal from "@/app/auth/AuthModal";
 
+/* ---------------- TYPES ---------------- */
 interface Product {
   id: number;
   name: string;
   image: string;
   price: number;
   oldPrice?: number;
-  rating?: number;
+  rating?: number | string;
   reviews?: number;
-  description?: string;       // ✅ ADD
-  attributes?: string[];      // ✅ ALREADY OK
+  description?: string;
+  attributes?: string[];
 }
 
 interface Props {
   product: Product;
 }
 
+/* ---------------- COMPONENT ---------------- */
 export default function ProductCard({ product }: Props) {
   const router = useRouter();
+
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
   const [liked, setLiked] = useState(false);
 
+  /* 🔐 AUTH */
+  const [user, setUser] = useState<any>(null);
+  const [showLogin, setShowLogin] = useState(false);
+
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL;
 
+  /* ---------------- LOAD USER ---------------- */
+  useEffect(() => {
+    const raw = localStorage.getItem("user");
+    if (raw) {
+      try {
+        setUser(JSON.parse(raw));
+      } catch {}
+    }
+  }, []);
+
+  /* ---------------- AUTH GUARD ---------------- */
+  const requireAuth = (action: () => void) => {
+    if (!user) {
+      setShowLogin(true);
+      return;
+    }
+    action();
+  };
+
+  /* ---------------- NORMALIZE RATING ---------------- */
+  const ratingValue = Math.max(
+    0,
+    Math.min(5, Math.floor(Number(product.rating) || 0))
+  );
+
+  /* ---------------- DISCOUNT ---------------- */
   const discount =
     product.oldPrice && product.oldPrice > product.price
-      ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
+      ? Math.round(
+          ((product.oldPrice - product.price) / product.oldPrice) * 100
+        )
       : 0;
 
-  /* --------------------------- Add To Cart --------------------------- */
+  /* ---------------- ADD TO CART ---------------- */
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (adding || added) return;
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/user/login");
-      return;
-    }
+    requireAuth(async () => {
+      setAdding(true);
+      setAdded(true);
 
-    // Instant UI feedback
-    setAdding(true);
-    setAdded(true);
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
 
-    // Optimistic local update
-    try {
-      const existing = localStorage.getItem("cart_items");
-      let updated = existing ? JSON.parse(existing) : [];
+        const existing = localStorage.getItem("cart_items");
+        let updated = existing ? JSON.parse(existing) : [];
 
-      const idx = updated.findIndex((it: any) => it.product_id === product.id);
+        const idx = updated.findIndex(
+          (it: any) => it.product_id === product.id
+        );
 
-      if (idx >= 0) updated[idx].quantity += 1;
-      else {
-        updated.push({
-          product_id: product.id,
-          quantity: 1,
-          product,
-        });
+        if (idx >= 0) updated[idx].quantity += 1;
+        else {
+          updated.push({
+            product_id: product.id,
+            quantity: 1,
+            product,
+          });
+        }
+
+        localStorage.setItem("cart_items", JSON.stringify(updated));
+        window.dispatchEvent(new Event("cart-updated"));
+
+        axios
+          .post(
+            `${apiBaseUrl}/cart/add`,
+            { product_id: product.id, quantity: 1 },
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+          .then((res) => {
+            updateCartCache(
+              res.data.items || res.data.cart?.items || []
+            );
+          })
+          .catch(() => {});
+      } catch (err) {
+        console.error("Cart update failed:", err);
+      } finally {
+        setTimeout(() => {
+          setAdding(false);
+          setAdded(false);
+        }, 1200);
       }
-
-      localStorage.setItem("cart_items", JSON.stringify(updated));
-      window.dispatchEvent(new Event("cart-updated"));
-
-      // Background sync
-      axios
-        .post(
-          `${apiBaseUrl}/cart/add`,
-          { product_id: product.id, quantity: 1 },
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
-        .then((res) => {
-          updateCartCache(res.data.items || res.data.cart?.items || []);
-        })
-        .catch(() => {});
-    } catch (err) {
-      console.error("Cart local update failed:", err);
-    } finally {
-      setTimeout(() => {
-        setAdding(false);
-        setAdded(false);
-      }, 1200);
-    }
+    });
   };
 
-  /* ---------------------------- UI ---------------------------- */
-
+  /* ---------------- UI ---------------- */
   return (
-    <div
-      onClick={() => router.push(`/user/products?id=${product.id}`)}
-      className="
-        relative 
-        bg-white 
-        border border-gray-200
-        rounded-[8px]
-        transition-all 
-        duration-200 
-        cursor-pointer 
-        overflow-hidden 
-        flex flex-col
-        h-[440px]
-      "
-    >
-      {/* Best Seller Badge */}
-      <div className="absolute top-2 left-2 bg-gray-900 text-white text-xs font-semibold px-2 py-0.5 rounded-md z-10 shadow">
-        Best Seller
-      </div>
-
-      {/* Wish Icon */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setLiked(!liked);
-        }}
-        className="
-          absolute 
-          top-2 right-2 
-          bg-white 
-          rounded-full 
-          shadow 
-          p-1 
-          z-10 
-          hover:scale-105 
-          transition
-        "
+    <>
+      <div
+        onClick={() =>
+          router.push(`/user/products?id=${product.id}`)
+        }
+        className="relative bg-white border border-gray-200 rounded-xl overflow-hidden cursor-pointer flex flex-col h-[440px]"
       >
-        <Heart
-          size={18}
-          className={liked ? "text-red-500 fill-red-500" : "text-gray-400"}
-        />
-      </button>
+        {/* BEST SELLER */}
+        <div className="absolute top-0 left-0 bg-black text-white text-[11px] font-semibold px-4 py-1.5 rounded-br-xl z-20">
+          Best Seller
+        </div>
 
-        {/* Image */}
-        <div className="relative w-full h-[320px] bg-gray-100">
-        <Image
-          src={product.image || "/placeholder.png"}
-          alt={product.name}
-          fill
-          className="object-cover"
-          sizes="(max-width: 640px) 50vw, 200px"
-        />
-
-        {/* Add to cart button */}
+        {/* ❤️ WISHLIST */}
         <button
-          onClick={handleAddToCart}
-          disabled={adding}
-          className="
-            absolute bottom-2 right-2 
-            bg-white 
-            rounded-lg 
-            shadow 
-            p-2 
-            hover:bg-gray-50 
-            transition
-          "
+          onClick={(e) => {
+            e.stopPropagation();
+            requireAuth(() => setLiked(!liked));
+          }}
+          className="absolute top-2 right-2 bg-white rounded-full shadow p-1 z-20"
         >
-          {added ? (
-            <CheckCircle2 className="text-green-600" size={18} />
-          ) : adding ? (
-            <div className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <ShoppingCart className="text-gray-700" size={18} />
-          )}
+          <Heart
+            size={18}
+            className={
+              liked
+                ? "text-red-500 fill-red-500"
+                : "text-gray-400"
+            }
+          />
         </button>
-      </div>
 
-      {/* Content */}
-      <div className="px-3 py-3 flex flex-col flex-grow">
-        {/* Title */}
-        <h3 className="font-bold text-[17px] text-gray-900 line-clamp-2 leading-tight min-h-[26px]">
-        {product.name}
-        </h3>
-        {/* Description */}
-        <p className="mt-1 text-sm font-semibold text-gray-700 line-clamp-1">
-          {product.description}
-        </p>
-        {/* Attributes */}
-        {product.attributes && product.attributes.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-2">
-            {product.attributes.slice(0, 3).map((attr, i) => (
-              <span
-                key={i}
-                className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
-              >
-                {attr}
+        {/* IMAGE */}
+        <div className="relative w-full h-[320px] bg-gray-100">
+          <Image
+            src={product.image || "/placeholder.png"}
+            alt={product.name}
+            fill
+            className="object-cover"
+          />
+
+          {/* ADD TO CART */}
+          <button
+            onClick={handleAddToCart}
+            disabled={adding}
+            className="absolute bottom-2 right-2 bg-white rounded-lg shadow p-2"
+          >
+            {added ? (
+              <CheckCircle2
+                className="text-green-600"
+                size={18}
+              />
+            ) : adding ? (
+              <div className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <ShoppingCart
+                className="text-gray-700"
+                size={18}
+              />
+            )}
+          </button>
+        </div>
+
+        {/* CONTENT */}
+        <div className="px-3 py-3 flex flex-col flex-grow">
+          <h3 className="font-bold text-[17px] text-gray-900 line-clamp-2">
+            {product.name}
+          </h3>
+
+          <p className="mt-1 text-sm font-semibold text-gray-700 line-clamp-1">
+            {product.description}
+          </p>
+
+          {/* ⭐ RATING (ABSOLUTE FINAL FIX) */}
+<div className="flex items-center gap-1 mt-2">
+  {[0, 1, 2, 3, 4].map((i) => {
+    const filled = i < ratingValue;
+
+    return (
+      <Star
+        key={`star-${product.id}-${i}`}
+        size={15}
+        className="rating-star"                 // ✅ EXCLUDED FROM GLOBAL CSS
+        fill={filled ? "#facc15" : "none"}      // ✅ STAR FILL
+        stroke={filled ? "#facc15" : "#d1d5db"} // ✅ STAR STROKE
+        style={{
+          fill: filled ? "#facc15" : "none",    // ✅ FINAL OVERRIDE
+          stroke: filled ? "#facc15" : "#d1d5db",
+        }}
+      />
+    );
+  })}
+
+  {product.reviews !== undefined && (
+    <span className="text-xs text-gray-500 ml-1">
+      ({product.reviews})
+    </span>
+  )}
+</div>
+
+          {/* PRICE */}
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="font-bold text-[15px] text-gray-900">
+              TZS {product.price.toLocaleString()}
+            </span>
+
+            {product.oldPrice && (
+              <span className="line-through text-xs text-gray-400">
+                {product.oldPrice.toLocaleString()}
               </span>
-            ))}
+            )}
+
+            {discount > 0 && (
+              <span className="text-green-600 text-xs font-semibold">
+                {discount}% OFF
+              </span>
+            )}
           </div>
-        )}
 
-        {/* Rating */}
-        <div className="flex items-center gap-1 mt-1">
-          {[...Array(5)].map((_, i) => (
-            <Star
-              key={i}
-              size={14}
-              className={
-                i < Math.floor(product.rating || 0)
-                  ? "text-yellow-400 fill-yellow-400"
-                  : "text-gray-300"
-              }
-            />
-          ))}
-
-          {product.reviews && (
-            <span className="text-xs text-gray-500 ml-1">
-              ({product.reviews})
+          <div className="flex items-center justify-between mt-3">
+            <span className="text-[10px] text-gray-500">
+              🚚 Selling out fast
             </span>
-          )}
-        </div>
-
-        {/* Price */}
-        <div className="mt-2 flex items-baseline gap-2">
-          <span className="font-bold text-[15px] text-gray-900">
-            TZS {product.price.toLocaleString()}
-          </span>
-
-          {product.oldPrice && (
-            <span className="line-through text-xs text-gray-400">
-              {product.oldPrice.toLocaleString()}
+            <span className="text-[10px] font-semibold text-yellow-500 uppercase">
+              EXPRESS
             </span>
-          )}
-
-          {discount > 0 && (
-            <span className="text-green-600 text-xs font-medium">
-              {discount}% OFF
-            </span>
-          )}
-        </div>
-
-        {/* Footer Badges */}
-        <div className="flex items-center justify-between mt-3">
-          <span className="text-[10px] text-gray-500">🚚 Selling out fast</span>
-          <span className="text-[10px] font-semibold text-yellow-500 uppercase">
-            express
-          </span>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* 🔐 LOGIN MODAL */}
+      {showLogin && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setShowLogin(false)}
+          />
+          <div className="relative bg-white w-[92%] max-w-md rounded-2xl shadow-2xl">
+            <button
+              onClick={() => setShowLogin(false)}
+              className="absolute right-4 top-4"
+            >
+              <X size={20} />
+            </button>
+            <LoginPage />
+          </div>
+        </div>
+      )}
+    </>
   );
 }

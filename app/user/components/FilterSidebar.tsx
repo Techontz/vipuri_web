@@ -89,7 +89,7 @@ export default function FilterSidebar({
         </label>
 
         <select
-          className="p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#008080] text-gray-900 bg-gray-50"
+          className="p-3 rounded-[6px] border border-gray-300 focus:ring-2 focus:ring-[#008080] text-gray-900 bg-gray-50"
           value={selectedCat || ""}
           onChange={(e) => {
             const id = Number(e.target.value);
@@ -117,7 +117,7 @@ export default function FilterSidebar({
           </label>
 
           <select
-            className="p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#008080] text-gray-900 bg-gray-50"
+            className="p-3 rounded-[6px] border border-gray-300 focus:ring-2 focus:ring-[#008080] text-gray-900 bg-gray-50"
             value={selectedSub || ""}
             onChange={(e) => {
               const id = Number(e.target.value);
@@ -151,7 +151,7 @@ export default function FilterSidebar({
                 </label>
 
                 <select
-                  className="p-2 rounded-lg border border-gray-300 bg-gray-50 
+                  className="p-2 rounded-[6px] border border-gray-300 bg-gray-50 
                              text-gray-900 focus:ring-2 focus:ring-[#008080]"
                   onChange={(e) =>
                     setFilters((prev) => ({
@@ -177,8 +177,8 @@ export default function FilterSidebar({
       <div className="mt-6 space-y-3">
         <button
           onClick={() => onApplyFilters?.(filters)}
-          className="w-full bg-[#FFD100] hover:bg-[#e6c200] text-black 
-                     font-bold py-2.5 rounded-lg transition"
+          className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 
+           font-semibold py-2.5 rounded-[6px] transition"
         >
           Apply Filters
         </button>
@@ -193,7 +193,7 @@ export default function FilterSidebar({
             onSelectSubcategory?.(null);
           }}
           className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 
-                     font-semibold py-2.5 rounded-lg transition"
+                     font-semibold py-2.5 rounded-[6px] transition"
         >
           Reset
         </button>

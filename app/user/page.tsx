@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import HomePage from "./home/page";
 import OrdersPage from "./orders/page";
 import MessagesPage from "./messages/page";
 import ProfilePage from "./profile/page";
 import CategoryScreen from "./categories/page"; // ✅ Add your category screen
 import BottomNavBar from "./components/BottomNavBar";
+import HomePage from "../page";
 
 export default function UserMainPage() {
   const [activeTab, setActiveTab] = useState("home");

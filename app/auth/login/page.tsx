@@ -11,7 +11,11 @@ type LoginResponse =
   | { success: false; status?: number; message?: string };
 
 // -------------------- COMPONENT --------------------
-export default function LoginPage() {
+interface LoginPageProps {
+  onLoginSuccess?: () => void;
+}
+
+export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,25 +44,32 @@ export default function LoginPage() {
       return;
     }
 
-    // ✅ On success
-    const role = res.user?.role;
-    if (role === "vendor") {
-      router.push("/vendor/dashboard");
-    } else {
-      router.push("/user");
-    }
+      // ✅ On success
+      localStorage.setItem("token", res.token);
+      localStorage.setItem("user", JSON.stringify(res.user));
 
-    setLoading(false);
+      // 🔴 TELL HEADER LOGIN IS DONE
+      onLoginSuccess?.();
+
+      const role = res.user?.role;
+      if (role === "vendor") {
+        router.push("/vendor/dashboard");
+      } else {
+        router.push("/");
+      }
+
+      setLoading(false);
+
   }
 
   // -------------------- UI --------------------
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6 py-10">
+    <div className="bg-white">
       <div className="w-full max-w-md">
         {/* Logo + Header */}
         <div className="flex flex-col items-center mb-6">
         <img
-          src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/logo.png`}
+          src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/logo b.png`}
           alt="Vipuri Logo"
           className="w-20 h-20 mb-3 object-contain"
         />
@@ -110,6 +121,6 @@ export default function LoginPage() {
           </span>
         </p>
       </div>
-    </main>
+    </div>
   );
 }

@@ -62,7 +62,7 @@ export default function ProductDetails({ product }: { product: any }) {
   /* Back navigation */
   const handleBack = () => {
     if (window.history.length > 1) router.back();
-    else router.push("/user");
+    else router.push("/");
   };
 
   /* Fetch related products */
@@ -101,7 +101,6 @@ export default function ProductDetails({ product }: { product: any }) {
       {isDesktop && (
         <Header
           onCategorySelect={() => {}} // prevent any auto redirect
-          onSubcategorySelect={() => {}} // disable subcategory redirects here
         />
       )}
 

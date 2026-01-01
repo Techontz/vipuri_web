@@ -26,27 +26,161 @@
   }
 }
 
-/* Tailwind Inline Theme Config */
+/* ===============================
+   Tailwind Inline Theme Config
+   =============================== */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+
+  /* ✅ NOON-STYLE TYPOGRAPHY */
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
 }
 
 /* =========
    Global Base
    ========= */
-  body {
+body {
   background: var(--background);
   color: var(--foreground);
-  font-family: "Inter", Arial, Helvetica, sans-serif;
+
+  /* ✅ NOON-STYLE FONT STACK */
+  font-family: var(--font-inter),
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+
+  letter-spacing: -0.01em; /* subtle Noon feel */
   transition: var(--transition);
   min-height: 100vh;
-  overflow-x: hidden; /* ✅ THIS IS THE FIX */
+  overflow-x: hidden;
 }
 
-/* Scrollbar cleanup */
+/* ===============================
+   HEADER ICONS ONLY – GREY
+   =============================== */
+
+/* Keep menu (drawer) icon orange */
+header .drawer-icon {
+  color: #FF6A33 !important;
+  stroke: #FF6A33 !important;
+}
+
+/* Cart badge stays red */
+header .bg-red-600 {
+  color: #ffffff !important;
+}
+
+/* ===============================
+   🔥 HEADER (STRICTLY HEADER ONLY)
+   =============================== */
+
+   header button {
+    color: #9ca3af; /* gray-400 */
+    transition: color 0.2s ease;
+  }
+  
+  header button:hover {
+    color: #FF6A33;
+  }
+  
+  /* keep drawer icon orange */
+  header .drawer-icon {
+    color: #FF6A33;
+  }
+  
+header,
+.header,
+.top-header,
+.navbar {
+  background-color: var(--accent);
+}
+
+header button {
+  color: #9ca3af; /* gray-400 */
+  transition: color 0.2s ease;
+}
+
+header button:hover {
+  color: #FF6A33;
+}
+
+header button .drawer-icon {
+  color: #FF6A33;
+}
+
+header input {
+  color: #000000 !important;
+}
+
+header input::placeholder {
+  color: #555555 !important;
+}
+
+/* ===============================
+   AUTH MODAL TABS – OVERRIDE FIX
+   =============================== */
+
+/* Inactive tab text */
+.auth-tabs button {
+  color: #d1d5db !important; /* gray-300 */
+}
+
+/* Active tab text (white background) */
+.auth-tabs button.bg-white {
+  color: #111827 !important;
+}
+
+/* ===============================
+   ✅ LIGHT SURFACES (SAFE VERSION)
+   =============================== */
+
+/* Base text color */
+.bg-white,
+.bg-gray-50,
+.bg-gray-100 {
+  color: #111827;
+}
+
+/* Text elements (EXCEPT discounts) */
+.bg-white p,
+.bg-white a,
+.bg-white button,
+.bg-white h1,
+.bg-white h2,
+.bg-white h3,
+.bg-white h4,
+.bg-white h5,
+.bg-white label,
+.bg-gray-50 p,
+.bg-gray-100 p {
+  color: #111827;
+}
+
+/* ❌ DO NOT OVERRIDE THESE */
+.bg-white span.discount-text,
+.bg-gray-50 span.discount-text,
+.bg-gray-100 span.discount-text {
+  color: inherit;
+}
+
+/* Body/content icons only – NOT header */
+main .bg-white svg:not(.rating-star):not(.drawer-icon),
+main .bg-gray-50 svg:not(.rating-star):not(.drawer-icon),
+main .bg-gray-100 svg:not(.rating-star):not(.drawer-icon) {
+  stroke: #111827;
+  fill: none;
+}
+
+/* ===============================
+   Scrollbar cleanup
+   =============================== */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

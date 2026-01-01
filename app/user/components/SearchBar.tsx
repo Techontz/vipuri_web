@@ -46,8 +46,8 @@ export default function SearchBar() {
         onFocus={() => query.length >= 2 && setShow(true)}
         onKeyDown={(e) => e.key === "Enter" && router.push(`/user/search?q=${query}`)}
         placeholder="What are you looking for?"
-        className="w-full py-2.5 pl-4 pr-10 bg-white border border-gray-300 rounded-md text-sm text-gray-800
-                   focus:outline-none focus:ring-2 focus:ring-[#FFD100] hover:shadow-sm transition-all duration-200"
+        className="w-full py-2.5 pl-4 pr-10 bg-white border border-gray-300 rounded-[6px] text-sm text-gray-800
+                   focus:outline-none focus:ring-2 focus:ring-[#FF6A33] hover:shadow-sm transition-all duration-200"
       />
       <Search
         size={20}
@@ -56,7 +56,7 @@ export default function SearchBar() {
       />
 
       {show && (
-        <div className="absolute top-11 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+        <div className="absolute top-11 w-full bg-white border border-gray-200 rounded-[6px] shadow-[6px] z-50 max-h-96 overflow-y-auto">
           {loading && <p className="p-3 text-gray-500 text-sm">Searching...</p>}
           {!loading &&
             results.map((r) => (
