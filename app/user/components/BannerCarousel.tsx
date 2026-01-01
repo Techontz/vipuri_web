@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import axios from "axios";
 
@@ -110,12 +109,10 @@ export default function BannerSection() {
               }`}
             >
               {!brokenImages[b.id] ? (
-                <Image
+                <img
                   src={b.image}
                   alt={b.alt || ""}
-                  fill
-                  className="object-cover"
-                  priority={i === 0}
+                  className="absolute inset-0 w-full h-full object-cover"
                   onError={() =>
                     setBrokenImages((p) => ({ ...p, [b.id]: true }))
                   }
@@ -128,9 +125,9 @@ export default function BannerSection() {
         </div>
       )}
 
-      {/* ================= MAIN + SIDE (ALWAYS SAME LAYOUT) ================= */}
+      {/* ================= MAIN + SIDE ================= */}
       <div className="w-full grid grid-cols-4 gap-[2px] mt-[2px]">
-        {/* MAIN (3/4 width) */}
+        {/* MAIN (3/4) */}
         {mainBanners.length > 0 && (
           <div className="relative col-span-3 h-[160px] sm:h-[220px] md:h-[360px] bg-gray-100 overflow-hidden">
             {mainBanners.map((b, i) => (
@@ -141,11 +138,10 @@ export default function BannerSection() {
                 }`}
               >
                 {!brokenImages[b.id] ? (
-                  <Image
+                  <img
                     src={b.image}
                     alt={b.alt || ""}
-                    fill
-                    className="object-cover"
+                    className="absolute inset-0 w-full h-full object-cover"
                     onError={() =>
                       setBrokenImages((p) => ({ ...p, [b.id]: true }))
                     }
@@ -178,15 +174,14 @@ export default function BannerSection() {
           </div>
         )}
 
-        {/* SIDE (1/4 width) */}
+        {/* SIDE (1/4) */}
         {sideBanner && (
           <div className="relative col-span-1 h-[160px] sm:h-[220px] md:h-[360px] bg-gray-100 overflow-hidden">
             {!brokenImages[sideBanner.id] ? (
-              <Image
+              <img
                 src={sideBanner.image}
                 alt={sideBanner.alt || ""}
-                fill
-                className="object-cover"
+                className="absolute inset-0 w-full h-full object-cover"
                 onError={() =>
                   setBrokenImages((p) => ({ ...p, [sideBanner.id]: true }))
                 }

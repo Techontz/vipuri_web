@@ -1,12 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      // ✅ Local Laravel (development only)
+      {
+        protocol: "http",
+        hostname: "127.0.0.1",
+        port: "8000",
+      },
 
-  // ✅ silence Turbopack conflict
-  experimental: {
-    turbo: false,
+      // ✅ Vipuri production backend
+      {
+        protocol: "https",
+        hostname: "api.vipuri.co.tz",
+      },
+    ],
   },
 };
 
 module.exports = nextConfig;
-

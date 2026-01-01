@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import axios from "axios";
 import Header from "@/app/user/components/Header";
+import { getImageUrl } from "@/lib/getImageUrl";
 
 /* ----------------------------- Interfaces ----------------------------- */
 interface Category {
@@ -182,12 +183,12 @@ export default function CategoryScreen() {
                   >
                     {sub.icon_image_url ? (
                       <Image
-                        src={sub.icon_image_url}
-                        alt={sub.name}
-                        width={80}
-                        height={80}
-                        className="object-cover w-full h-full"
-                      />
+                      src={getImageUrl(sub.icon_image_url)}
+                      alt={sub.name}
+                      width={80}
+                      height={80}
+                      className="object-cover w-full h-full"
+                    />                    
                     ) : (
                       <span className="text-xl sm:text-2xl">🛍️</span>
                     )}

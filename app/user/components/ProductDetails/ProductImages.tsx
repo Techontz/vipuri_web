@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -45,12 +44,11 @@ export default function ProductImages({ images }: { images: string[] }) {
       >
         {/* Main Image */}
         <div className="relative w-full h-[380px] bg-gray-100 rounded-lg overflow-hidden">
-          <Image
-            src={getUrl(images?.[active])}
-            alt="Product"
-            fill
-            className="object-contain transition-all duration-300"
-          />
+        <img
+          src={getUrl(images?.[active])}
+          alt="Product"
+          className="w-full h-full object-contain"
+        />
         </div>
 
         {/* Thumbnail Strip */}
@@ -67,11 +65,10 @@ export default function ProductImages({ images }: { images: string[] }) {
                   i === active ? "border-teal-500" : "border-gray-200"
                 } cursor-pointer flex-shrink-0`}
               >
-                <Image
+                <img
                   src={getUrl(img)}
                   alt={`thumb-${i}`}
-                  fill
-                  className="object-cover"
+                  className="w-full h-full object-cover"
                 />
               </div>
             ))}
@@ -124,12 +121,11 @@ export default function ProductImages({ images }: { images: string[] }) {
 
           {/* Main fullscreen image */}
           <div className="relative w-full h-full flex items-center justify-center p-4">
-            <Image
-              src={getUrl(images?.[active])}
-              alt={`fullscreen-${active}`}
-              fill
-              className="object-contain select-none transition-all duration-300"
-            />
+          <img
+            src={getUrl(images?.[active])}
+            alt="Fullscreen"
+            className="max-w-full max-h-full object-contain"
+          />
           </div>
 
           {/* Slide indicators */}

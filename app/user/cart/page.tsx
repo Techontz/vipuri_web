@@ -237,12 +237,11 @@ export default function CartPage() {
                     className="flex gap-4 items-center bg-gray-50 hover:bg-gray-100 p-4 rounded-xl transition"
                   >
                     <div className="w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                      <Image
+                      <img
                         src={image}
                         alt={product.name || "Product"}
-                        width={100}
-                        height={100}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                       />
                     </div>
 

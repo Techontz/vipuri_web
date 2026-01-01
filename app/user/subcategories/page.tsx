@@ -148,6 +148,11 @@ function SubcategoryProductsInner() {
 /* 🛒 Product Card (Updated with Comma Formatting)                            */
 /* -------------------------------------------------------------------------- */
 function ProductCard({ product }: { product: Product }) {
+  const imageUrl =
+  product.images?.[0]?.startsWith("http")
+    ? product.images[0]
+    : `${process.env.NEXT_PUBLIC_STORAGE_URL}/${product.images?.[0] || "placeholder.png"}`;
+
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
@@ -163,11 +168,6 @@ function ProductCard({ product }: { product: Product }) {
 
   const formatPrice = (value: number) =>
     new Intl.NumberFormat("en-TZ").format(value);
-
-  const imageUrl =
-    product.images?.[0]?.startsWith("http")
-      ? product.images[0]
-      : `${process.env.NEXT_PUBLIC_STORAGE_URL}/${product.images?.[0] || "placeholder.png"}`;
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();

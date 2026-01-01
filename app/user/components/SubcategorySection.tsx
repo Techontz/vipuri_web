@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { getImageUrl } from "@/lib/getImageUrl";
 
 interface Subcategory {
   id: number;
@@ -150,12 +151,10 @@ export default function SubcategorySection({
               "
             >
               {sub.icon_image_url ? (
-                <Image
-                  src={sub.icon_image_url}
+                <img
+                  src={getImageUrl(sub.icon_image_url)}
                   alt={sub.name}
-                  width={64}
-                  height={64}
-                  className="object-contain max-h-[40px] sm:max-h-[80px]"
+                  className="w-full h-full object-contain"
                 />
               ) : (
                 <span>🛍️</span>

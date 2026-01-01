@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { updateCartCache } from "@/lib/cartUtils";
 import AuthModal from "@/app/auth/AuthModal";
+import { getImageUrl } from "@/lib/getImageUrl";
 
 /* ---------------- TYPES ---------------- */
 interface Product {
@@ -167,11 +168,10 @@ export default function ProductCard({ product }: Props) {
 
         {/* IMAGE */}
         <div className="relative w-full h-[320px] bg-gray-100">
-          <Image
-            src={product.image || "/placeholder.png"}
+          <img
+            src={getImageUrl(product.image)}
             alt={product.name}
-            fill
-            className="object-cover"
+            className="absolute inset-0 w-full h-full object-cover"
           />
 
           {/* ADD TO CART */}
