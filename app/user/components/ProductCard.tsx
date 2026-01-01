@@ -277,7 +277,12 @@ export default function ProductCard({ product }: Props) {
             >
               <X size={20} />
             </button>
-            <LoginPage />
+            <AuthModal
+              onClose={() => setShowLogin(false)}
+              onLoginSuccess={() => {
+                setShowLogin(false);
+              }}
+            />
           </div>
         </div>
       )}
