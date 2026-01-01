@@ -27,6 +27,7 @@ interface Category {
 
 interface HeaderProps {
   onCategorySelect?: (category: Category) => void;
+  onSubcategorySelect?: (subcategory: any) => void;
 }
 
 function UnequalMenuIcon({
@@ -101,7 +102,10 @@ const translations = {
 
 type Lang = "en" | "sw";
 
-export default function Header({ onCategorySelect }: HeaderProps) {
+export default function Header({
+  onCategorySelect,
+  onSubcategorySelect,
+}: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -513,7 +517,6 @@ export default function Header({ onCategorySelect }: HeaderProps) {
           }}
         />
       )}
-
 
       {/* LOGOUT CONFIRMATION */}
       {confirmLogout && (
