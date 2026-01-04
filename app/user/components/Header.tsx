@@ -195,7 +195,17 @@ export default function Header({
     axios
       .get(`${process.env.NEXT_PUBLIC_API_URL}/categories-with-subcategories`)
       .then((res) => {
-        setCategories(res.data || []);
+        const cats =
+          Array.isArray(res.data)
+            ? res.data
+            : Array.isArray(res.data.data)
+            ? res.data.data
+            : Array.isArray(res.data.categories)
+            ? res.data.categories
+            : [];
+
+        setCategories(cats);
+        console.log("HEADER categories response:", res.data);
         setLoadingCats(false);
       })
       .catch(() => setLoadingCats(false));

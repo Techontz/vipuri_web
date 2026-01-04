@@ -53,7 +53,14 @@ export default function CategoryScreen() {
     axios
       .get(`${process.env.NEXT_PUBLIC_API_URL}/categories`)
       .then((res) => {
-        const cats = Array.isArray(res.data) ? res.data : [];
+        const cats =
+          Array.isArray(res.data)
+            ? res.data
+            : Array.isArray(res.data.data)
+            ? res.data.data
+            : Array.isArray(res.data.categories)
+            ? res.data.categories
+            : [];
         setCategories(cats);
         if (!selectedCategory && cats.length > 0) setSelectedCategory(cats[0]);
         localStorage.setItem("d2k_categories", JSON.stringify(cats));

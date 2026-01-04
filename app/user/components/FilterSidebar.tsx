@@ -46,7 +46,15 @@ export default function FilterSidebar({
   useEffect(() => {
     axios
       .get(`${process.env.NEXT_PUBLIC_API_URL}/categories-with-subcategories`)
-      .then((res) => setCategories(res.data || []))
+      .then((res) => {
+        const cats = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.data)
+          ? res.data.data
+          : [];
+      
+        setCategories(cats);
+      })      
       .catch(() => console.log("Failed to load categories"));
   }, []);
 
@@ -65,7 +73,9 @@ export default function FilterSidebar({
       .catch(() => console.log("Failed to load attributes"));
   }, [selectedSub]);
 
-  const currentCategory = categories.find((c) => c.id === selectedCat);
+  const currentCategory = Array.isArray(categories)
+  ? categories.find((c) => c.id === selectedCat)
+  : null;
 
   /* -------------------------------- UI -------------------------------- */
   return (
