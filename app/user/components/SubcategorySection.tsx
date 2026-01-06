@@ -157,10 +157,15 @@ export default function SubcategorySection({
                   className="w-full h-full object-contain"
                 />
               ) : (
-                <span>🛍️</span>
+                <Image
+                  src="/icons/subcategory-placeholder.png"
+                  alt="Subcategory placeholder"
+                  width={40}
+                  height={40}
+                  className="opacity-50"
+                />
               )}
             </div>
-
             <div className="mt-2 text-[11px] sm:text-[14px] font-semibold text-gray-900">
               {sub.name}
             </div>
