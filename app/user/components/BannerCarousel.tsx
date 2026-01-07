@@ -85,54 +85,111 @@ export default function BannerSection() {
     return <div className="w-full h-[260px] bg-gray-200 animate-pulse" />;
   }
 
+  if (!banners.length) {
+    return (
+      <div className="w-full h-[260px] flex items-center justify-center text-gray-400">
+        No banners available
+      </div>
+    );
+  }
+
   /* -------------------------------------------------------------------------- */
   /* UI                                                                        */
   /* -------------------------------------------------------------------------- */
   return (
     <section className="w-full bg-white">
-      {/* ================= TOP TWO (SIDE BY SIDE) ================= */}
-      <div className="grid grid-cols-2 gap-[2px]">
-      {[0, 1].map((i) => {
-        const b = topBanners[i];
+      {/* ================= TOP THIN ================= */}
+      {topBanners.length > 0 && (
+        <div className="relative w-full h-[44px] sm:h-[64px] overflow-hidden bg-gray-100">
+          {topBanners.map((b, i) => (
+            <div
+              key={b.id}
+              className={`absolute inset-0 transition-opacity duration-700 ${
+                i === currentTop ? "opacity-100 z-10" : "opacity-0 z-0"
+              }`}
+            >
+              {!brokenImages[b.id] ? (
+                <img
+                  src={b.image}
+                  alt={b.alt || ""}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  onError={() =>
+                    setBrokenImages((p) => ({ ...p, [b.id]: true }))
+                  }
+                />
+              ) : (
+                <GreyPlaceholder />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
-        return (
-          <div
-            key={b?.id ?? `top-placeholder-${i}`}
-            className="relative h-[60px] sm:h-[80px] bg-gray-100 overflow-hidden"
-          >
-            {b && !brokenImages[b.id] ? (
+      {/* ================= MAIN + SIDE ================= */}
+      <div className="w-full grid grid-cols-4 gap-[2px] mt-[2px]">
+        {/* MAIN (3/4) */}
+        {mainBanners.length > 0 && (
+          <div className="relative col-span-3 h-[160px] sm:h-[220px] md:h-[360px] bg-gray-100 overflow-hidden">
+            {mainBanners.map((b, i) => (
+              <div
+                key={b.id}
+                className={`absolute inset-0 transition-opacity duration-700 ${
+                  i === currentMain ? "opacity-100 z-10" : "opacity-0 z-0"
+                }`}
+              >
+                {!brokenImages[b.id] ? (
+                  <img
+                    src={b.image}
+                    alt={b.alt || ""}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    onError={() =>
+                      setBrokenImages((p) => ({ ...p, [b.id]: true }))
+                    }
+                  />
+                ) : (
+                  <GreyPlaceholder />
+                )}
+              </div>
+            ))}
+
+            {mainBanners.length > 1 && (
+              <>
+                <Arrow
+                  left
+                  onClick={() =>
+                    setCurrentMain((p) =>
+                      p === 0 ? mainBanners.length - 1 : p - 1
+                    )
+                  }
+                />
+                <Arrow
+                  onClick={() =>
+                    setCurrentMain((p) =>
+                      p === mainBanners.length - 1 ? 0 : p + 1
+                    )
+                  }
+                />
+              </>
+            )}
+          </div>
+        )}
+
+        {/* SIDE (1/4) */}
+        {sideBanner && (
+          <div className="relative col-span-1 h-[160px] sm:h-[220px] md:h-[360px] bg-gray-100 overflow-hidden">
+            {!brokenImages[sideBanner.id] ? (
               <img
-                src={b.image}
-                alt={b.alt || ""}
+                src={sideBanner.image}
+                alt={sideBanner.alt || ""}
                 className="absolute inset-0 w-full h-full object-cover"
                 onError={() =>
-                  setBrokenImages((p) => ({ ...p, [b.id]: true }))
+                  setBrokenImages((p) => ({ ...p, [sideBanner.id]: true }))
                 }
               />
             ) : (
               <GreyPlaceholder />
             )}
           </div>
-        );
-      })}
-      </div>
-  
-      {/* ================= MAIN UNDER (FULL WIDTH) ================= */}
-      <div className="relative mt-[2px] h-[120px] sm:h-[300px] md:h-[280px] bg-gray-100 overflow-hidden">
-        {mainBanners[0] && !brokenImages[mainBanners[0].id] ? (
-          <img
-            src={mainBanners[0].image}
-            alt={mainBanners[0].alt || ""}
-            className="absolute inset-0 w-full h-full object-cover"
-            onError={() =>
-              setBrokenImages((p) => ({
-                ...p,
-                [mainBanners[0].id]: true,
-              }))
-            }
-          />
-        ) : (
-          <GreyPlaceholder />
         )}
       </div>
     </section>

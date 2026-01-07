@@ -320,6 +320,9 @@ export default function Header({
               </svg>
             </button>
 
+            {/* DIVIDER */}
+            <span className="h-6 w-px bg-gray-300" />
+            
             {/* USER */}
             <button
               onClick={() => setShowUserDropdown((v) => !v)}
