@@ -113,6 +113,7 @@ export default function Header({
   const langDropdownRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   const [lang, setLang] = useState<Lang>("en");
@@ -159,6 +160,13 @@ export default function Header({
     }
   }, [pathname, showLogin]);  
 
+  useEffect(() => {
+    document.body.style.overflow = mobileSearchOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileSearchOpen]);
+  
   /* ================= LANGUAGE POSITION ================= */
   useEffect(() => {
     if (showLang && langBtnRef.current) {
@@ -195,17 +203,7 @@ export default function Header({
     axios
       .get(`${process.env.NEXT_PUBLIC_API_URL}/categories-with-subcategories`)
       .then((res) => {
-        const cats =
-          Array.isArray(res.data)
-            ? res.data
-            : Array.isArray(res.data.data)
-            ? res.data.data
-            : Array.isArray(res.data.categories)
-            ? res.data.categories
-            : [];
-
-        setCategories(cats);
-        console.log("HEADER categories response:", res.data);
+        setCategories(res.data || []);
         setLoadingCats(false);
       })
       .catch(() => setLoadingCats(false));
@@ -297,8 +295,31 @@ export default function Header({
               <SearchBar />
             </div>
           </div>
+
           {/* RIGHT */}
           <div className="flex items-center">
+
+            {/* MOBILE SEARCH ICON */}
+            <button
+              onClick={() => setMobileSearchOpen(true)}
+              className="md:hidden flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-gray-600"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </button>
+
             {/* USER */}
             <button
               onClick={() => setShowUserDropdown((v) => !v)}
@@ -383,13 +404,13 @@ export default function Header({
           )}
 
             {/* DIVIDER */}
-            <span className="h-6 w-px bg-gray-300" />
+            <span className="hidden md:block h-6 w-px bg-gray-300" />
 
             {/* LANGUAGE */}
             <button
               ref={langBtnRef}
               onClick={() => setShowLang((v) => !v)}
-              className="group flex items-center px-3"
+              className="group hidden md:flex items-center px-3"
             >
               <Globe
                 size={20}
@@ -398,12 +419,12 @@ export default function Header({
             </button>
 
             {/* DIVIDER */}
-            <span className="h-6 w-px bg-gray-300" />
+            <span className="hidden md:block h-6 w-px bg-gray-300" />
 
             {/* FAVORITES */}
             <button
               onClick={() => requireAuth(() => router.push("/user/favorites"))}
-              className="group flex items-center px-3"
+              className="group hidden md:flex items-center px-3"
             >
               <Heart
                 size={20}
@@ -412,7 +433,7 @@ export default function Header({
             </button>
 
             {/* DIVIDER */}
-            <span className="h-6 w-px bg-gray-300" />
+            <span className="hidden md:block h-6 w-px bg-gray-300" />
 
             {/* CART */}
             <button
@@ -420,7 +441,7 @@ export default function Header({
               className="relative flex items-center gap-1 px-3"
             >
               <ShoppingCart size={20} className="text-gray-500" />
-              <span className="text-sm font-medium">Cart</span>
+              <span className="hidden md:inline text-sm font-medium">Cart</span>
 
               {cartCount > 0 && (
                 <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] px-1.5 rounded-full">
@@ -430,10 +451,10 @@ export default function Header({
             </button>
 
             {/* DIVIDER */}
-            <span className="h-6 w-px bg-gray-300" />
+            <span className="hidden md:block h-6 w-px bg-gray-300" />
 
             {/* NOTIFICATIONS */}
-            <button className="group flex items-center px-3">
+            <button className="group hidden md:flex items-center px-3">
               <Bell
                 size={20}
                 className="text-gray-500 group-hover:text-[#FF6A33] transition-colors"
@@ -515,6 +536,30 @@ export default function Header({
             />
           )}
         </div>
+
+        {/* MOBILE SEARCH OVERLAY */}
+        {mobileSearchOpen && (
+          <div className="fixed inset-0 z-[1200] bg-white">
+            {/* HEADER */}
+            <div className="flex items-center gap-3 px-4 h-[64px] border-b">
+              <button
+                onClick={() => setMobileSearchOpen(false)}
+                className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100"
+              >
+                <X size={22} />
+              </button>
+
+              <div className="flex-1">
+                <SearchBar autoFocus />
+              </div>
+            </div>
+
+            {/* OPTIONAL SUGGESTIONS SPACE */}
+            <div className="p-4 text-sm text-gray-400">
+              Start typing to search products
+            </div>
+          </div>
+        )}
       </header>
 
       {/* AUTH MODAL */}
