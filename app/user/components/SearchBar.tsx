@@ -69,7 +69,7 @@ export default function SearchBar({ autoFocus = false }: SearchBarProps) {
                 onClick={() => router.push(`/user/products?id=${r.id}`)}
                 className="flex items-center gap-3 p-2 hover:bg-gray-100 cursor-pointer"
               >
-                <Image
+                <Image 
                   src={r.images?.[0] || "/placeholder.png"}
                   alt={r.name}
                   width={40}

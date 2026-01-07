@@ -436,7 +436,7 @@ export default function Header({
             </button>
 
             {/* DIVIDER */}
-            <span className="hidden md:block h-6 w-px bg-gray-300" />
+            <span className="h-6 w-px bg-gray-300" />
 
             {/* CART */}
             <button
