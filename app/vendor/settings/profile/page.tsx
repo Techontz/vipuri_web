@@ -138,9 +138,7 @@ export default function VendorProfilePage() {
 
     try {
       setIsUploading(true);
-      await api.post("/vendor/update-profile", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      await api.post("/vendor/update-profile", formData);
       fetchProfile();
     } catch {
       alert("Failed to upload picture");
@@ -158,9 +156,7 @@ export default function VendorProfilePage() {
     const formData = new FormData();
     formData.append(field, value);
     try {
-      await api.post("/vendor/update-profile", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      await api.post("/vendor/update-profile", formData);
       fetchProfile();
     } catch {
       alert("Update failed");
@@ -185,13 +181,10 @@ export default function VendorProfilePage() {
       if (editingPayment) {
         await api.post(
           `/vendor/update-payment-option/${editingPayment.id}`,
-          formData,
-          { headers: { "Content-Type": "multipart/form-data" } }
-        );
+          formData
+        );        
       } else {
-        await api.post("/vendor/add-payment-option", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        await api.post("/vendor/update-profile", formData);
       }
       await fetchProfile();
       setShowPaymentModal(false);

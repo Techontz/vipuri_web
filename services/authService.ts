@@ -60,9 +60,7 @@ export const AuthService = {
         fd.append("nida_number", form.nidaNumber);
       }
 
-      const response = await api.post("/register", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const response = await api.post("/register", fd);
 
       return {
         success: true,
