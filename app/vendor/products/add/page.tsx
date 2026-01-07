@@ -176,11 +176,7 @@ export default function AddProductPage() {
         formData.append(`attributes[${k}]`, v)
       );
       images.forEach((img) => formData.append("images[]", img));
-
-      const res = await api.post("/products", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
+      const res = await api.post("/products", formData);
       setMessage({ type: "success", text: res.data?.message || "Product added successfully!" });
       setTimeout(() => router.push("/vendor/dashboard"), 1500);
     } catch (err: any) {
