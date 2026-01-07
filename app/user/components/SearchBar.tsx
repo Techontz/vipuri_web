@@ -5,7 +5,11 @@ import { Search } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
-export default function SearchBar() {
+interface SearchBarProps {
+  autoFocus?: boolean;
+}
+
+export default function SearchBar({ autoFocus = false }: SearchBarProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
