@@ -56,7 +56,10 @@ export default function MessagesPage() {
         localStorage.setItem(CACHE_TIME_KEY, now.toString());
 
         // ✅ Store unread count globally for header
-        const totalUnread = data.reduce((acc, c) => acc + (c.unread || 0), 0);
+        const totalUnread = data.reduce(
+          (acc: number, c: { unread?: number }) => acc + (c.unread ?? 0),
+          0
+        );
         localStorage.setItem("d2k_unread_count", totalUnread.toString());
         window.dispatchEvent(new Event("messages-updated"));
       } catch (err: any) {
