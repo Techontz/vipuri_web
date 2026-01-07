@@ -230,10 +230,7 @@ function EditProductInner() {
       if (existingImages.length === 0 && newImages.length === 0)
         formData.append("remove_images", "true");
       newImages.forEach((img) => formData.append("images[]", img));
-
-      const res = await api.post(`/products/${productId}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await api.post(`/products/${productId}`, formData);
 
       setMessage({ type: "success", text: res.data?.message || "✅ Product updated successfully!" });
       setCached(`product-${productId}`, null);
