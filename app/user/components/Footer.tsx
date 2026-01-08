@@ -209,7 +209,6 @@ export default function Footer() {
         <div className="flex flex-wrap justify-center md:justify-start gap-3">
           <Image src="/badges/appstore.png" alt="" width={110} height={38} />
           <Image src="/badges/playstore.png" alt="" width={110} height={38} />
-          <Image src="/badges/appgallery.png" alt="" width={110} height={38} />
         </div>
       </div>
 
@@ -253,45 +252,59 @@ export default function Footer() {
             <Image src="/payments/mixx.png" alt="" width={40} height={20} />
             <Image src="/payments/mastercard.png" alt="" width={40} height={20} />
             <Image src="/payments/visa.png" alt="" width={40} height={20} />
-            <Image src="/payments/amex.png" alt="" width={40} height={20} />
             <Image src="/payments/cash.png" alt="" width={40} height={20} />
           </div>
 
           {/* RIGHT */}
-          {/* RIGHT */}
-<div className="flex flex-col items-center gap-6 text-center w-full font-normal">
+          <div className="flex flex-col items-center gap-6 text-center w-full font-normal">
 
-{/* LINKS — 3 COLUMNS ON MOBILE */}
-<div
-  className="
-    grid grid-cols-3 gap-x-6 gap-y-2
-    md:flex md:flex-wrap md:justify-end md:gap-4
-    text-sm font-normal
-  "
->
-  <a href="#" className="font-normal hover:text-gray-800">Careers</a>
-  <a href="#" className="font-normal hover:text-gray-800">Warranty Policy</a>
-  <a href="#" className="font-normal hover:text-gray-800">Sell with us</a>
+          {/* LINKS — 3 COLUMNS ON MOBILE */}
+          <div
+            className="
+              grid grid-cols-3 gap-x-4 gap-y-2
+              md:flex md:flex-wrap md:justify-end md:gap-4
+              text-[11px] md:text-sm
+              tracking-tight
+            "
+          >
+            <a href="#" className="whitespace-nowrap font-normal hover:text-gray-800">
+              Careers
+            </a>
 
-  <a href="#" className="font-normal hover:text-gray-800">Terms of Use</a>
-  <a href="#" className="font-normal hover:text-gray-800">Privacy Policy</a>
-  <a href="#" className="font-normal hover:text-gray-800">Consumer Rights</a>
-</div>
+            <a href="#" className="whitespace-nowrap font-normal hover:text-gray-800">
+              Warranty&nbsp;Policy
+            </a>
 
-{/* TECHON — ALWAYS BOTTOM & CENTERED */}
-<div className="whitespace-nowrap text-center font-normal">
-  <span className="italic font-normal text-gray-400">Developed by </span>
-  <a
-    href="https://www.techonsoftware.com"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="italic font-normal text-slate-500 hover:underline hover:text-slate-600 transition"
-  >
-    TechOn Software Co.
-  </a>
-</div>
-</div>
+            <a href="#" className="whitespace-nowrap font-normal hover:text-gray-800">
+              Sell&nbsp;with&nbsp;us
+            </a>
 
+            <a href="#" className="whitespace-nowrap font-normal hover:text-gray-800">
+              Terms&nbsp;of&nbsp;Use
+            </a>
+
+            <a href="#" className="whitespace-nowrap font-normal hover:text-gray-800">
+              Privacy&nbsp;Policy
+            </a>
+
+            <a href="#" className="whitespace-nowrap font-normal hover:text-gray-800">
+              Consumer&nbsp;Rights
+            </a>
+          </div>
+
+          {/* TECHON — BOTTOM CENTER */}
+          <div className="whitespace-nowrap text-center font-normal">
+            <span className="italic text-gray-400">Developed by </span>
+            <a
+              href="https://www.techonsoftware.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="italic text-slate-500 hover:underline hover:text-slate-600 transition"
+            >
+              TechOn Software Co.
+            </a>
+          </div>
+          </div>  
         </div>
       </div>
     </footer>
