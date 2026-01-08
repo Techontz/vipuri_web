@@ -242,11 +242,11 @@ export default function Footer() {
         "
       >
         <div className="flex flex-col md:flex-row items-center justify-center md:justify-between gap-4 text-center md:text-left">
-        {/* LEFT */}
-          <div className="whitespace-nowrap">
-            © 2025 Vipuri. All Rights Reserved
+          {/* LEFT */}
+          <div className="whitespace-nowrap text-gray-400 text-sm">
+            © {new Date().getFullYear()} Vipuri. All Rights Reserved
           </div>
-
+       
           {/* CENTER */}
           <div className="flex flex-wrap justify-center md:justify-start items-center gap-4">
             <Image src="/payments/mpesa.png" alt="" width={40} height={20} />
@@ -258,20 +258,40 @@ export default function Footer() {
           </div>
 
           {/* RIGHT */}
-          <div className="flex flex-wrap items-center justify-end gap-4">
-            <a href="#" className="hover:text-gray-800">Careers</a>
-            <a href="#" className="hover:text-gray-800">Warranty Policy</a>
-            <a href="#" className="hover:text-gray-800">Sell with us</a>
-            <a href="#" className="hover:text-gray-800">Terms of Use</a>
-            <a href="#" className="hover:text-gray-800">Terms of Sale</a>
-            <a href="#" className="hover:text-gray-800">Privacy Policy</a>
-            <a href="#" className="hover:text-gray-800">Consumer Rights</a>
-            <span className="hidden md:inline text-gray-400">|</span>
-            <span className="whitespace-nowrap">
-            <span className="italic text-gray-400">Developed by </span>
-            <span className="italic text-slate-500">TechOn Software Co.</span>
-          </span>
-          </div>
+          {/* RIGHT */}
+<div className="flex flex-col items-center gap-6 text-center w-full font-normal">
+
+{/* LINKS — 3 COLUMNS ON MOBILE */}
+<div
+  className="
+    grid grid-cols-3 gap-x-6 gap-y-2
+    md:flex md:flex-wrap md:justify-end md:gap-4
+    text-sm font-normal
+  "
+>
+  <a href="#" className="font-normal hover:text-gray-800">Careers</a>
+  <a href="#" className="font-normal hover:text-gray-800">Warranty Policy</a>
+  <a href="#" className="font-normal hover:text-gray-800">Sell with us</a>
+
+  <a href="#" className="font-normal hover:text-gray-800">Terms of Use</a>
+  <a href="#" className="font-normal hover:text-gray-800">Privacy Policy</a>
+  <a href="#" className="font-normal hover:text-gray-800">Consumer Rights</a>
+</div>
+
+{/* TECHON — ALWAYS BOTTOM & CENTERED */}
+<div className="whitespace-nowrap text-center font-normal">
+  <span className="italic font-normal text-gray-400">Developed by </span>
+  <a
+    href="https://www.techonsoftware.com"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="italic font-normal text-slate-500 hover:underline hover:text-slate-600 transition"
+  >
+    TechOn Software Co.
+  </a>
+</div>
+</div>
+
         </div>
       </div>
     </footer>
