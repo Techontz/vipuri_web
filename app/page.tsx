@@ -10,7 +10,7 @@ import SubcategorySection from "@/app/user/components/SubcategorySection";
 import FilterSidebar from "@/app/user/components/FilterSidebar";
 import SpotlightDeals from "@/app/user/components/SpotlightDeals";
 import Header from "./user/components/Header";
-import Footer from "./user/components/Footer"; // ✅ ADD FOOTER
+import Footer from "./user/components/Footer";
 
 /* ------------------------------- Types ------------------------------- */
 interface Product {
@@ -117,14 +117,14 @@ export default function HomePage() {
   return (
     <>
       {/* ================= MAIN CONTENT ================= */}
-      <main className="bg-gray-50 min-h-screen pb-20">
+      <main className="bg-gray-50 pb-[90px]">
         {/* HEADER */}
         <Header onCategorySelect={(cat) => setSelectedCategory(cat)} />
 
         {/* BANNER */}
         <BannerCarousel />
 
-        <div className="flex w-full mt-2">
+        <div className="flex w-full mt-2 gap-4 md:gap-12">
           {/* LEFT SIDEBAR */}
           <aside className="hidden md:block w-[250px]">
             <FilterSidebar
@@ -138,7 +138,7 @@ export default function HomePage() {
           </aside>
 
           {/* RIGHT CONTENT */}
-          <section className="flex-1 px-3 sm:px-6 md:px-12">
+          <section className="flex-1 overflow-x-hidden px-4 sm:px-0 md:pr-8 lg:pr-8">
             {selectedCategory && (
               <SubcategorySection
                 key={selectedCategory.id}
@@ -154,13 +154,12 @@ export default function HomePage() {
               />
             )}
 
-            {/* 🔥 SPOTLIGHT DEALS */}
             <SpotlightDeals deals={spotlightDeals} />
           </section>
         </div>
       </main>
 
-      {/* ================= FOOTER (FIX) ================= */}
+      {/* FOOTER */}
       <Footer />
     </>
   );
@@ -252,7 +251,7 @@ function ProductsBySubcategoryRows({
                 </p>
               </div>
             ) : (
-              <div className="flex gap-3 overflow-x-auto pb-2">
+              <div className="flex gap-3 overflow-x-auto pb-2 px-4 sm:px-0 md:pr-8 lg:pr-12">
                 {products.map((p) => (
                   <div key={p.id} className="w-[220px] flex-shrink-0">
                     <ProductCard

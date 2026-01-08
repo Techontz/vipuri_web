@@ -33,7 +33,7 @@ export default function ProductGrid({ products }: { products: any[] }) {
         md:grid-cols-4
         lg:grid-cols-5
         xl:grid-cols-4
-        gap-1
+        gap-3
         py-4
       "
     >

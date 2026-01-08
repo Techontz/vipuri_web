@@ -130,7 +130,7 @@ export default function SubcategorySection({
         ref={scrollRef}
         className="
           flex gap-3 sm:gap-4
-          pr-4 sm:pr-6
+          px-4 sm:px-0
           overflow-x-auto scrollbar-hide scroll-smooth
         "
       >

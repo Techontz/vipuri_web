@@ -72,8 +72,8 @@ export default function CategoryNav({
 
   /* ================= UI ================= */
   return (
-    <div className="relative bg-white border-t border-gray-200 h-[48px] flex items-center select-none">
-      {/* LEFT ARROW */}
+    <div className="relative bg-white border-t border-gray-200 h-[48px] flex items-center select-none max-w-full overflow-x-hidden">
+     {/* LEFT ARROW */}
       {canScrollLeft && (
         <button
           onClick={() => scroll("left")}
@@ -85,9 +85,15 @@ export default function CategoryNav({
 
       {/* CATEGORIES */}
       <div
-        ref={scrollRef}
-        className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-12 flex-1"
-      >
+          ref={scrollRef}
+          className="
+            flex items-center gap-2
+            overflow-x-auto scrollbar-hide
+            px-10 md:px-12
+            flex-1
+            max-w-full
+          "
+        >
         {categories.map((cat) => {
           const isActive = activeCategory?.id === cat.id;
 
