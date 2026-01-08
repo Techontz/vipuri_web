@@ -67,7 +67,7 @@ export default function AuthModal({ onClose, onLoginSuccess }: AuthModalProps) {
             <LoginPage
               onLoginSuccess={() => {
                 onLoginSuccess?.();
-                onClose();
+                setTimeout(onClose, 50);
               }}
             />
           ) : (

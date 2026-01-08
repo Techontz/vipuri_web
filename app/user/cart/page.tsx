@@ -27,7 +27,7 @@ export default function CartPage() {
     const base = storageBase?.replace(/\/$/, "") || "";
     const normalize = (path: string) => {
       if (path.startsWith("http")) return path;
-      if (path.startsWith("/")) return `${base}${path}`;
+      if (path.startsWith("/user")) return `${base}${path}`;
       return `${base}/${path}`;
     };
     if (Array.isArray(product.images) && typeof product.images[0] === "string")

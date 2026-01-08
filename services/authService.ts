@@ -16,10 +16,8 @@ export const AuthService = {
 
       const { data } = await api.post("/register", payload);
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-
       return { success: true, user: data.user, token: data.token };
+
     } catch (error: any) {
       return handleError(error);
     }
@@ -75,17 +73,19 @@ export const AuthService = {
   // -------------------- LOGIN --------------------
   async login(email: string, password: string) {
     try {
-      const { data } = await api.post("/login", { email, password });
+      const data = await api.post("/login", { email, password });
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      return {
+        success: true,
+        user: data.user,
+        token: data.token,
+      };
 
-      return { success: true, user: data.user, token: data.token };
     } catch (error: any) {
       return handleError(error);
     }
   },
-
+  
   // -------------------- LOGOUT --------------------
   async logout() {
     try {
@@ -110,26 +110,12 @@ export const AuthService = {
 
 // -------------------- ERROR HANDLER --------------------
 function handleError(error: any) {
-  if (error.response) {
-    return {
-      success: false,
-      status: error.response.status,
-      message:
-        error.response.data?.message || "Something went wrong. Try again.",
-    };
-  }
-
-  if (error.request) {
-    return {
-      success: false,
-      status: 0,
-      message: "Server unreachable. Check your internet.",
-    };
-  }
-
   return {
     success: false,
-    status: 0,
-    message: "Unexpected error occurred.",
+    status: error?.status ?? 0,
+    message:
+      error?.message ??
+      "Unexpected error occurred. Please try again.",
   };
 }
+

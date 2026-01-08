@@ -62,7 +62,7 @@ export default function ProductDetails({ product }: { product: any }) {
   /* Back navigation */
   const handleBack = () => {
     if (window.history.length > 1) router.back();
-    else router.push("/");
+    else router.push("/user");
   };
 
   /* Fetch related products */

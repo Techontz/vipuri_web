@@ -93,17 +93,15 @@ export default function BottomNavBar({ activeTab, setActiveTab }: Props) {
       {/* ================= BOTTOM NAV ================= */}
       <div
         className="
-          md:flex
           fixed bottom-0 left-0
           w-full
           bg-white
           border-t border-gray-200
-          flex justify-around py-2
-          shadow-md
+          flex md:hidden
+          justify-around py-2
           z-[9999]
-          pb-[env(safe-area-inset-bottom)]
-        "
-      >
+        ">
+      
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;

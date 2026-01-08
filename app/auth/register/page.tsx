@@ -23,7 +23,7 @@ export default function RegisterPage() {
 
         <div className="mt-4">
           {isCustomer ? (
-            <CustomerRegisterForm onSuccess={() => router.push("/")} />
+            <CustomerRegisterForm onSuccess={() => router.push("/user")} />
           ) : (
             <VendorRegisterForm onSuccess={() => router.push("/vendor/dashboard")} />
           )}

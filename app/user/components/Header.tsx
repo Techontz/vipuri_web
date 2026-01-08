@@ -108,6 +108,7 @@ export default function Header({
 }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const isHome = pathname === "/user";
 
   const langBtnRef = useRef<HTMLButtonElement>(null);
   const langDropdownRef = useRef<HTMLDivElement>(null);
@@ -257,7 +258,7 @@ export default function Header({
     setConfirmLogout(false);        // 2️⃣ close dialog
     setLoggingOut(false);           // 3️⃣ reset state
   
-    router.push("/");               // 4️⃣ redirect
+    router.push("/user");               // 4️⃣ redirect
   }
   
   const displayName =
@@ -284,7 +285,7 @@ export default function Header({
               alt="Vipuri"
               width={120}
               height={32}
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/user")}
               className="cursor-pointer"
             />
           </div>
@@ -526,9 +527,9 @@ export default function Header({
           </div>
         )}
 
-        {/* CATEGORIES */}
-        <div className="bg-white relative z-10">
-          {!loadingCats && (
+        {/* CATEGORIES — HOME ONLY */}
+        {isHome && !loadingCats && (
+          <div className="bg-white relative z-10">
             <CategoryNav
               categories={categories}
               activeCategory={selectedCategory}
@@ -537,8 +538,8 @@ export default function Header({
                 onCategorySelect?.(cat);
               }}
             />
-          )}
-        </div>
+          </div>
+        )}
 
         {/* MOBILE SEARCH OVERLAY */}
         {mobileSearchOpen && (

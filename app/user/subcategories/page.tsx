@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import axios from "axios";
 import Image from "next/image";
 import { ShoppingCart, CheckCircle2, Star, Heart } from "lucide-react";
-import Header from "@/app/user/components/Header";
 
 /* -------------------------------------------------------------------------- */
 /* 🧠 Cache Settings                                                          */
@@ -107,14 +106,12 @@ function SubcategoryProductsInner() {
   if (loading && products.length === 0)
     return (
       <div className="bg-gray-50 min-h-screen">
-        <Header onCategorySelect={() => {}} onSubcategorySelect={() => {}} />
         <SkeletonLoader />
       </div>
     );
 
   return (
     <>
-      <Header onCategorySelect={() => {}} onSubcategorySelect={() => {}} />
       <div className="bg-[#F9FAFB] min-h-screen pt-2 pb-10">
         <div className="flex items-center justify-between px-5 md:px-8 py-4">
           <h2 className="text-xl md:text-2xl font-extrabold text-[#272B37] capitalize">

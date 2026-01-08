@@ -28,10 +28,18 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
     setLoading(true);
     setError("");
 
-    // Cast so TS understands this structure
-    const res = (await AuthService.login(email, password)) as LoginResponse;
+    let res: LoginResponse;
 
-    // ✅ If login failed (error object)
+    try {
+      res = (await AuthService.login(email, password)) as LoginResponse;
+    } catch (err) {
+      console.error("LOGIN CRASH:", err);
+      setError("Unexpected error occurred. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    // ❌ LOGIN FAILED
     if (!res.success) {
       if (res.status === 403) {
         setError("Your account is pending approval. Please wait for confirmation.");
@@ -44,22 +52,20 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
       return;
     }
 
-      // ✅ On success
-      localStorage.setItem("token", res.token);
-      localStorage.setItem("user", JSON.stringify(res.user));
+    // ✅ LOGIN SUCCESS
+    localStorage.setItem("token", res.token);
+    localStorage.setItem("user", JSON.stringify(res.user));
 
-      // 🔴 TELL HEADER LOGIN IS DONE
-      onLoginSuccess?.();
+    onLoginSuccess?.();
 
-      const role = res.user?.role;
-      if (role === "vendor") {
-        router.push("/vendor/dashboard");
-      } else {
-        router.push("/");
-      }
+    const role = res.user?.role;
+    if (role === "vendor") {
+      router.push("/vendor/dashboard");
+    } else {
+      router.push("/user");
+    }
 
-      setLoading(false);
-
+    setLoading(false);
   }
 
   // -------------------- UI --------------------
@@ -68,11 +74,11 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
       <div className="w-full max-w-md">
         {/* Logo + Header */}
         <div className="flex flex-col items-center mb-6">
-        <img
-          src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/logo b.png`}
-          alt="Vipuri Logo"
-          className="w-20 h-20 mb-3 object-contain"
-        />
+          <img
+            src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/logo b.png`}
+            alt="Vipuri Logo"
+            className="w-20 h-20 mb-3 object-contain"
+          />
           <h1 className="text-2xl font-bold text-gray-900">Welcome Back</h1>
           <p className="text-gray-500 text-sm">Sign in to your account</p>
         </div>
@@ -93,14 +99,12 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
             onChange={setPassword}
           />
 
-          {/* Error Message */}
           {error && (
             <p className="text-red-600 text-sm font-medium mt-1 text-center">
               {error}
             </p>
           )}
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
@@ -110,7 +114,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
           </button>
         </form>
 
-        {/* Footer */}
         <p className="text-center mt-6 text-gray-600 text-[15px]">
           Don’t have an account?{" "}
           <span

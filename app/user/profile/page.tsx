@@ -70,8 +70,8 @@ export default function ProfilePage() {
           api.get("/cart"),
         ]);
 
-        const fetchedUser = userRes.data;
-        const fetchedCart = cartRes.data.items?.length || 0;
+        const fetchedUser = userRes;
+        const fetchedCart = cartRes.items?.length || 0;
 
         setUser(fetchedUser);
         setCartCount(fetchedCart);

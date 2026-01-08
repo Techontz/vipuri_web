@@ -1,16 +1,26 @@
-import Script from "next/script";
+"use client";
+
+import Header from "./components/Header";
 import Footer from "./components/Footer";
+import BottomNavBar from "./components/BottomNavBar";
 
-export default function UserLayout({ children }: { children: React.ReactNode }) {
+export default function UserLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 text-gray-900 font-sans">
-      <Script
-        src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`}
-        strategy="afterInteractive"
-      />
+    <div className="min-h-screen bg-gray-50 relative">
+      {/* HEADER */}
+      <Header />
 
-      <main className="flex-grow">{children}</main>
+      {/* PAGE CONTENT */}
+      <main className="pb-24">{children}</main>
 
+      {/* BOTTOM NAV — MOBILE ONLY */}
+      <BottomNavBar activeTab="home" setActiveTab={() => {}} />
+
+      {/* FOOTER — ALL SCREENS */}
       <Footer />
     </div>
   );

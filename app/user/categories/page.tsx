@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import axios from "axios";
-import Header from "@/app/user/components/Header";
 import { getImageUrl } from "@/lib/getImageUrl";
 
 /* ----------------------------- Interfaces ----------------------------- */
@@ -106,8 +105,6 @@ export default function CategoryScreen() {
   /* ------------------------------ Page Layout ----------------------------- */
   return (
     <div className="bg-white min-h-screen">
-      {/* ✅ Global Header */}
-      <Header onCategorySelect={() => {}} onSubcategorySelect={() => {}} />
 
       {/* ✅ Two-column layout (always visible) */}
       <div className="flex h-[calc(100vh-120px)] overflow-hidden">

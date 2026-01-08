@@ -25,7 +25,7 @@ export default function VendorInfo({ vendor }: { vendor: any }) {
   const getLogo = () => {
     if (!vendor.logo) return "/images/placeholder.png"; // fallback must exist in /public/images/
     if (vendor.logo.startsWith("http")) return vendor.logo;
-    if (vendor.logo.startsWith("/")) return `${baseUrl}${vendor.logo}`;
+    if (vendor.logo.startsWith("/user")) return `${baseUrl}${vendor.logo}`;
     return `${baseUrl}/${vendor.logo}`;
   };
 

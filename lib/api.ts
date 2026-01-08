@@ -38,7 +38,7 @@ async function request(
     if (res.status === 401 && typeof window !== "undefined") {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      window.location.href = "/auth/login";
+      window.dispatchEvent(new Event("auth-expired"));
       throw new Error("Unauthorized");
     }
 
@@ -46,10 +46,19 @@ async function request(
     // ❌ Handle API errors
     // ========================================================
     if (!res.ok) {
-      const errorText = await res.text();
-      console.error("❌ API Error:", res.status, endpoint, errorText);
-      throw new Error(errorText || "API request failed");
-    }
+      let errorData: any = null;
+    
+      try {
+        errorData = await res.json();
+      } catch {
+        errorData = { message: "Unknown server error" };
+      }
+    
+      return Promise.reject({
+        status: res.status,
+        message: errorData.message || "Request failed",
+      });
+    }    
 
     // ========================================================
     // ✅ Return JSON

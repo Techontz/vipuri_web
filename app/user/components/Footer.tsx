@@ -202,30 +202,32 @@ export default function Footer() {
       </div>
 
       {/* ================= APP + SOCIAL ================= */}
-      <div className="px-6 md:px-16 lg:px-24 py-8 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-8">
-        <div>
-          <h4 className="font-semibold uppercase mb-3">Shop On The Go</h4>
-          <div className="flex gap-3">
-            <Image src="/badges/appstore.png" alt="" width={110} height={38} />
-            <Image src="/badges/playstore.png" alt="" width={110} height={38} />
-            <Image src="/badges/appgallery.png" alt="" width={110} height={38} />
-          </div>
-        </div>
+      <div className="px-6 md:px-16 lg:px-24 py-8 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
+      <div className="flex flex-col items-center md:items-start text-center md:text-left">
+        <h4 className="font-semibold uppercase mb-3">Shop On The Go</h4>
 
-        <div>
-          <h4 className="font-semibold uppercase mb-3">Connect With Us</h4>
-          <div className="flex gap-3">
-            {[Facebook, X, Instagram, Linkedin].map((Icon, i) => (
-              <a
-                key={i}
-                href="#"
-                className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center hover:opacity-80"
-              >
-                <Icon size={18} />
-              </a>
-            ))}
-          </div>
+        <div className="flex flex-wrap justify-center md:justify-start gap-3">
+          <Image src="/badges/appstore.png" alt="" width={110} height={38} />
+          <Image src="/badges/playstore.png" alt="" width={110} height={38} />
+          <Image src="/badges/appgallery.png" alt="" width={110} height={38} />
         </div>
+      </div>
+
+      <div className="flex flex-col items-center md:items-start text-center md:text-left">
+        <h4 className="font-semibold uppercase mb-3">Connect With Us</h4>
+
+        <div className="flex justify-center md:justify-start gap-3">
+          {[Facebook, X, Instagram, Linkedin].map((Icon, i) => (
+            <a
+              key={i}
+              href="#"
+              className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center hover:opacity-80"
+            >
+              <Icon size={18} />
+            </a>
+          ))}
+        </div>
+      </div>
       </div>
 
       {/* ================= DESKTOP-STYLE BOTTOM BAR ================= */}
@@ -239,14 +241,14 @@ export default function Footer() {
           md:pb-4
         "
       >
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* LEFT */}
+        <div className="flex flex-col md:flex-row items-center justify-center md:justify-between gap-4 text-center md:text-left">
+        {/* LEFT */}
           <div className="whitespace-nowrap">
             © 2025 Vipuri. All Rights Reserved
           </div>
 
           {/* CENTER */}
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap justify-center md:justify-start items-center gap-4">
             <Image src="/payments/mpesa.png" alt="" width={40} height={20} />
             <Image src="/payments/mixx.png" alt="" width={40} height={20} />
             <Image src="/payments/mastercard.png" alt="" width={40} height={20} />
@@ -265,9 +267,10 @@ export default function Footer() {
             <a href="#" className="hover:text-gray-800">Privacy Policy</a>
             <a href="#" className="hover:text-gray-800">Consumer Rights</a>
             <span className="hidden md:inline text-gray-400">|</span>
-            <span className="font-semibold text-gray-800 whitespace-nowrap">
-              Developed by TechOn Software Co.
-            </span>
+            <span className="whitespace-nowrap">
+            <span className="italic text-gray-400">Developed by </span>
+            <span className="italic text-slate-500">TechOn Software Co.</span>
+          </span>
           </div>
         </div>
       </div>
