@@ -1,0 +1,681 @@
+/* ==========================================================================
+   VIPURI — additive styles only.
+
+   The purchased theme's compiled CSS (main.css / custom.css / app.css) is the
+   design specification and is loaded unchanged. Everything here either:
+     a) supports a screen the original did not have (branches, branch
+        inventory, stock transfers) using the theme's own tokens, or
+     b) fixes a behaviour that only appears because the frontend is now a SPA.
+   No original rule is overridden.
+   ========================================================================== */
+
+/* --- SPA housekeeping ---------------------------------------------------- */
+
+/* The preloader only runs on first paint; the router hides it afterwards. */
+.preloader.d-none {
+  display: none !important;
+}
+
+/* React drives quantity steppers, so disabled states need to read as disabled. */
+.product-qty__btn:disabled,
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Buttons rendered where the theme expected an anchor. */
+button.dropdown-item {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+}
+
+button.header-option__btn,
+button.cart__item__remove {
+  background: none;
+  border: 0;
+}
+
+/* --- Loading skeletons --------------------------------------------------- */
+
+.vp-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: hsl(var(--white-l-800, 220 14% 96%));
+  border-radius: 8px;
+}
+
+.vp-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  animation: vp-shimmer 1.4s infinite;
+}
+
+@keyframes vp-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.vp-skeleton--card {
+  height: 320px;
+}
+
+.vp-skeleton--line {
+  height: 14px;
+  margin-bottom: 10px;
+}
+
+.vp-skeleton--title {
+  height: 22px;
+  width: 60%;
+  margin-bottom: 16px;
+}
+
+/* --- Branch directory (new screen, theme tokens) ------------------------- */
+
+.branch-card {
+  height: 100%;
+  padding: 24px;
+  border: 1px solid hsl(var(--black) / 0.08);
+  border-radius: 12px;
+  background: hsl(var(--white));
+  transition: 0.25s ease;
+}
+
+.branch-card:hover {
+  border-color: hsl(var(--base));
+  box-shadow: 0 12px 30px hsl(var(--black) / 0.06);
+  transform: translateY(-3px);
+}
+
+.branch-card__badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 30px;
+  font-size: 12px;
+  font-weight: 500;
+  background: hsl(var(--base) / 0.12);
+  color: hsl(var(--base));
+  margin-bottom: 10px;
+}
+
+.branch-card__title {
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.branch-card__meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+.branch-card__meta i {
+  color: hsl(var(--base));
+  margin-top: 3px;
+}
+
+.branch-card__hours {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid hsl(var(--black) / 0.08);
+  font-size: 14px;
+}
+
+.branch-card__hours dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  margin: 0;
+}
+
+.branch-card__hours dt {
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.branch-card__hours dd {
+  margin: 0;
+  text-align: right;
+}
+
+/* Branch stock strip on the product page. */
+.branch-stock-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  display: grid;
+  gap: 8px;
+}
+
+.branch-stock-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: hsl(var(--black) / 0.03);
+  font-size: 14px;
+}
+
+.branch-stock-list__status {
+  font-weight: 500;
+}
+
+.branch-stock-list__status.in {
+  color: #12b76a;
+}
+
+.branch-stock-list__status.out {
+  color: #f04438;
+}
+
+/* --- AI panels on the product page --------------------------------------- */
+
+.ai-panel {
+  margin-top: 24px;
+  padding: 22px;
+  border: 1px solid hsl(var(--base) / 0.25);
+  border-radius: 12px;
+  background: hsl(var(--base) / 0.04);
+}
+
+.ai-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+.ai-panel__title i {
+  color: hsl(var(--base));
+}
+
+.ai-panel__output {
+  white-space: pre-wrap;
+  font-size: 15px;
+  line-height: 1.7;
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 8px;
+  background: hsl(var(--white));
+  border: 1px solid hsl(var(--black) / 0.06);
+}
+
+.ai-chat__log {
+  max-height: 340px;
+  overflow-y: auto;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.ai-chat__bubble {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 15px;
+  line-height: 1.6;
+  max-width: 85%;
+}
+
+.ai-chat__bubble.user {
+  margin-left: auto;
+  background: hsl(var(--base));
+  color: hsl(var(--white));
+}
+
+.ai-chat__bubble.assistant {
+  background: hsl(var(--white));
+  border: 1px solid hsl(var(--black) / 0.08);
+}
+
+.ai-chat__form {
+  display: flex;
+  gap: 10px;
+}
+
+.ai-chat__form .form--control {
+  flex: 1;
+}
+
+/* --- Admin additions ----------------------------------------------------- */
+
+/* Branch scope chip in the admin topbar. */
+.branch-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 13px;
+}
+
+.branch-scope i {
+  font-size: 16px;
+}
+
+/* Permission matrix on the roles screen. */
+.permission-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px 24px;
+}
+
+/* Stock level pill used across inventory tables. */
+.stock-pill {
+  display: inline-block;
+  min-width: 52px;
+  text-align: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.stock-pill.ok {
+  background: rgba(18, 183, 106, 0.12);
+  color: #12b76a;
+}
+
+.stock-pill.low {
+  background: rgba(247, 144, 9, 0.14);
+  color: #f79009;
+}
+
+.stock-pill.out {
+  background: rgba(240, 68, 56, 0.12);
+  color: #f04438;
+}
+
+/* --- Small responsive touch-ups ------------------------------------------ */
+
+@media (max-width: 575px) {
+  .branch-card {
+    padding: 18px;
+  }
+
+  .ai-chat__bubble {
+    max-width: 95%;
+  }
+}
+
+/* --- Product gallery ------------------------------------------------------
+   The original used two linked slick carousels. React owns the selected image
+   here, so the same visual arrangement (large image above a thumbnail strip)
+   is produced with a grid instead of a carousel. */
+
+.product-details-thumb-slider--static {
+  border: 1px solid hsl(var(--black) / 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  background: hsl(var(--white));
+}
+
+.product-details-thumb-slider--static img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  display: block;
+}
+
+.product-details-prev-slider--static {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.product-details-prev-slider__slide {
+  padding: 0;
+  border: 1px solid hsl(var(--black) / 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+  background: hsl(var(--white));
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.product-details-prev-slider__slide.is-active,
+.product-details-prev-slider__slide:hover {
+  border-color: hsl(var(--base));
+}
+
+.product-details-prev-slider__slide img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  display: block;
+}
+
+@media (max-width: 575px) {
+  .product-details-prev-slider--static {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* --- Order timeline (tracking + order detail) ---------------------------- */
+
+.order-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 22px;
+  position: relative;
+}
+
+.order-timeline::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: hsl(var(--black) / 0.08);
+}
+
+.order-timeline__item {
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.order-timeline__item:last-child {
+  padding-bottom: 0;
+}
+
+.order-timeline__dot {
+  position: absolute;
+  left: -22px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: hsl(var(--base));
+  box-shadow: 0 0 0 3px hsl(var(--base) / 0.18);
+}
+
+/* --- Dashboard widgets (customer + admin) -------------------------------- */
+
+.dashboard-widget {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 12px;
+  background: hsl(var(--white));
+  border: 1px solid hsl(var(--black) / 0.07);
+  height: 100%;
+}
+
+.dashboard-widget__icon {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: hsl(var(--base) / 0.12);
+  color: hsl(var(--base));
+  font-size: 24px;
+}
+
+.dashboard-widget__label {
+  display: block;
+  font-size: 13px;
+  color: hsl(var(--black) / 0.6);
+}
+
+.dashboard-widget__value {
+  margin: 2px 0 0;
+  font-size: 24px;
+}
+
+/* Checkout / dashboard panels reuse the theme's card language. */
+.checkout-card {
+  padding: 24px;
+  border-radius: 12px;
+  background: hsl(var(--white));
+  border: 1px solid hsl(var(--black) / 0.07);
+}
+
+.checkout-card__title {
+  font-size: 18px;
+  margin-bottom: 16px;
+}
+
+.checkout-item-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.checkout-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid hsl(var(--black) / 0.06);
+}
+
+.checkout-item:last-child {
+  border-bottom: 0;
+}
+
+.checkout-item__thumb {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  flex: 0 0 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid hsl(var(--black) / 0.08);
+}
+
+.checkout-item__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.checkout-item__qty {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  background: hsl(var(--base));
+  color: #fff;
+  font-size: 12px;
+  display: grid;
+  place-items: center;
+}
+
+.checkout-item__content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.checkout-item__title {
+  margin: 0;
+  font-size: 15px;
+}
+
+.checkout-item__price {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.shipping-rate-list,
+.payment-method-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shipping-rate-list > li,
+.payment-method-list > li {
+  border-bottom: 1px solid hsl(var(--black) / 0.06);
+}
+
+.shipping-rate-list > li:last-child,
+.payment-method-list > li:last-child {
+  border-bottom: 0;
+}
+
+/* --- Customer dashboard sidebar ------------------------------------------ */
+
+.dashboard-sidebar {
+  border-radius: 12px;
+  border: 1px solid hsl(var(--black) / 0.07);
+  background: hsl(var(--white));
+  overflow: hidden;
+}
+
+.dashboard-sidebar__header {
+  padding: 20px;
+  border-bottom: 1px solid hsl(var(--black) / 0.07);
+}
+
+.dashboard-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dashboard-user__thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.dashboard-user__name {
+  margin: 0;
+  font-size: 16px;
+}
+
+.dashboard-user__email {
+  font-size: 13px;
+  color: hsl(var(--black) / 0.6);
+  word-break: break-all;
+}
+
+.sidebar-menu {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+}
+
+.sidebar-menu__link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 20px;
+  background: none;
+  border: 0;
+  text-align: left;
+  color: inherit;
+  transition: 0.2s ease;
+}
+
+.sidebar-menu__link:hover,
+.sidebar-menu__item.active .sidebar-menu__link {
+  background: hsl(var(--base) / 0.08);
+  color: hsl(var(--base));
+}
+
+.sidebar-menu__link .icon {
+  font-size: 18px;
+}
+
+/* ---------------------------------------------------------------------------
+   Captcha
+   The original rendered this inline from PHP. As a component it needs a little
+   layout of its own; colours and control styling come from the theme.
+--------------------------------------------------------------------------- */
+.captcha-field__challenge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.captcha-field__image {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.captcha-field__image svg {
+  display: block;
+  width: 100%;
+  height: 46px;
+}
+
+.captcha-field__reload {
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid hsl(var(--base-h) var(--base-s) var(--base-l) / 0.35);
+  background-color: transparent;
+  color: hsl(var(--base-h) var(--base-s) var(--base-l));
+  border-radius: 4px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.captcha-field__reload:hover {
+  background-color: hsl(var(--base-h) var(--base-s) var(--base-l));
+  color: #fff;
+}
+
+/* Support ticket attachments */
+.ticket-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+/* Header logo
+   The theme sizes `.header-logo img` by width alone (180/140/120px at its own
+   991px and 575px breakpoints). The real VIPURI lockup is taller-set than the
+   placeholder it replaced, so width alone rendered it 57px tall instead of 39px
+   and pushed the header from 130px to 139px.
+
+   Capping the height restores the measured header height exactly — which also
+   keeps `--header-height`, and so the `.page-wrapper` offset, where it was.
+   The theme's `object-fit: contain` keeps the aspect ratio. */
+.header-logo img {
+  max-height: 39px;
+}
+
+@media screen and (max-width: 991px) {
+  .header-logo img {
+    max-height: 30px;
+  }
+}
+
+@media screen and (max-width: 575px) {
+  .header-logo img {
+    max-height: 26px;
+  }
+}
