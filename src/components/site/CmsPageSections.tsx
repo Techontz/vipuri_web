@@ -1,6 +1,7 @@
 'use client';
 
 import type { CmsBlock } from '@/types';
+import { imageUrl } from '@/lib/format';
 
 /**
  * Renders a CMS-built page. Only the section types the source template
@@ -37,7 +38,7 @@ export function CmsPageSections({
                       </div>
                     </div>
                     <div className="col-lg-6">
-                      {block.image && <img className="about-video__thumb" src={block.image} alt="about" />}
+                      {block.image && <img className="about-video__thumb" src={imageUrl(block.image)} alt="about" />}
                     </div>
                   </div>
                 </div>
@@ -83,7 +84,7 @@ export function CmsPageSections({
                           </div>
                           <div className="testimonial-card__footer">
                             <div className="testimonial-card-info">
-                              {item.image && <img className="testimonial-card-info__thumb" src={item.image} alt={item.name} />}
+                              {item.image && <img className="testimonial-card-info__thumb" src={imageUrl(item.image)} alt={item.name} />}
                               <div className="testimonial-card-info__content">
                                 <h6 className="testimonial-card-info__name">{item.name}</h6>
                                 <span className="testimonial-card-info__designation">{item.designation}</span>
@@ -109,7 +110,7 @@ export function CmsPageSections({
                   <div className="row justify-content-center align-items-center gy-4">
                     {items.map((item, index) => (
                       <div className="col-4 col-md-2" key={index}>
-                        <div className="client-item">{item.image && <img src={item.image} alt="client" />}</div>
+                        <div className="client-item">{item.image && <img src={imageUrl(item.image)} alt="client" />}</div>
                       </div>
                     ))}
                   </div>

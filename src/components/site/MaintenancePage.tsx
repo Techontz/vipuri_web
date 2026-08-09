@@ -1,4 +1,5 @@
 import type { SiteSettings } from '@/types';
+import { imageUrl } from '@/lib/format';
 
 /**
  * Shown in place of every storefront page while the shop is closed,
@@ -17,7 +18,7 @@ export function MaintenancePage({ content }: { content: SiteSettings['maintenanc
               <div className="row justify-content-center">
                 <div className="col-sm-6 col-8 col-lg-12">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img className="img-fluid mx-auto mb-5" src={content.image} alt="image" />
+                  <img className="img-fluid mx-auto mb-5" src={imageUrl(content.image)} alt="image" />
                 </div>
               </div>
             )}

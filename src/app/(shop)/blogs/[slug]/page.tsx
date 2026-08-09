@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { serverGet } from '@/lib/server';
 import { formatDate, plainText } from '@/lib/format';
+import { imageUrl } from '@/lib/format';
 
 type Blog = {
   slug: string;
@@ -56,7 +57,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
                 <ul className="blog-sidebar-list">
                   {data.latest_blogs.map((blog) => (
                     <li className="blog-sidebar-list__item d-flex gap-3 py-3" key={blog.slug}>
-                      <img src={blog.image ?? '/assets/images/default.png'} alt={blog.title} width={72} height={56} style={{ objectFit: 'cover', borderRadius: 6 }} />
+                      <img src={imageUrl(blog.image)} alt={blog.title} width={72} height={56} style={{ objectFit: 'cover', borderRadius: 6 }} />
                       <div>
                         <Link href={`/blogs/${blog.slug}`}>{blog.title}</Link>
                         <span className="d-block" style={{ fontSize: 13 }}>{formatDate(blog.created_at)}</span>

@@ -191,6 +191,15 @@ function LatestProductSection({ content, products }: { content: Block; products:
                   role="tab"
                   aria-controls={`latest-cat-${group.slug}-tab-pane`}
                   aria-selected={index === 0}
+                  // Bootstrap's tab plugin runs beforeInteractive, so by the
+                  // time React hydrates it has already put tabindex="-1" on
+                  // every inactive tab — an attribute this render did not
+                  // produce, which is the hydration mismatch. Declaring it
+                  // here makes the markup match what the plugin will do, and
+                  // is the roving-tabindex pattern ARIA expects anyway: only
+                  // the selected tab stays in the tab order. Matches how
+                  // ProductDetails already writes its tabs.
+                  tabIndex={index === 0 ? undefined : -1}
                   key={group.slug}
                 >
                   <span className="text">{group.name}</span>

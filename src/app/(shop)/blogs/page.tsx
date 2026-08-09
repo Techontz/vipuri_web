@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { serverGet } from '@/lib/server';
 import { formatDate, plainText } from '@/lib/format';
+import { imageUrl } from '@/lib/format';
 
 export const metadata: Metadata = {
   title: 'Blog',
@@ -36,7 +37,7 @@ export default async function BlogsPage() {
               <div className="col-xxl-4 col-lg-4 col-md-6" key={blog.id}>
                 <div className="blog-card">
                   <div className="blog-card__thumb">
-                    <img src={blog.image ?? '/assets/images/default.png'} alt={blog.title} />
+                    <img src={imageUrl(blog.image)} alt={blog.title} />
                   </div>
                   <div className="blog-card__content">
                     <div className="blog-card__content-body">

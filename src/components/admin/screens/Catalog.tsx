@@ -7,10 +7,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { AdminPageHeader } from '@/components/admin/AdminShell';
 import { useAdmin } from '@/components/admin/AdminProviders';
 import { Card, DataTable, Field, StatusBadge, StockPill } from '@/components/admin/ui';
-import { ApiError, api, apiWithMessage } from '@/lib/api';
+import { ApiError, api, apiWithMessage, uploadWithProgress } from '@/lib/api';
 import { imageUrl, showAmount } from '@/lib/format';
 import { toastError, toastSuccess } from '@/lib/toast';
 import type { Pagination as PaginationMeta } from '@/types';
+import { GalleryPicker, type ExistingImage } from '@/components/admin/ImagePicker';
 
 /* ================================= Products =============================== */
 
@@ -308,7 +309,9 @@ export function ProductFormScreen({ productId }: { productId?: number }) {
   const [meta, setMeta] = useState<FormData | null>(null);
   const [form, setForm] = useState({ ...EMPTY_PRODUCT });
   const [images, setImages] = useState<File[]>([]);
-  const [existingImages, setExistingImages] = useState<{ id: number; url: string | null }[]>([]);
+  const [mainImageIndex, setMainImageIndex] = useState<number | null>(null);
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null);
+  const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
   const [busy, setBusy] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -351,7 +354,7 @@ export function ProductFormScreen({ productId }: { productId?: number }) {
           product_url: string | null;
           button_text: string | null;
           is_featured?: boolean;
-          gallery: { id: number; url: string | null }[];
+          gallery: { id: number; url: string | null; is_main?: boolean }[];
           variations: { id: number; attribute_values: number[]; regular_price: number; sale_price: number; sku: string | null; stock_quantity: number }[];
           meta: { title: string | null; description: string | null; keywords: string | null };
         };
@@ -416,7 +419,13 @@ export function ProductFormScreen({ productId }: { productId?: number }) {
           })),
         }));
 
-        setExistingImages(product.gallery ?? []);
+        setExistingImages(
+          (product.gallery ?? []).map((image) => ({
+            id: image.id,
+            url: image.url,
+            isMain: Boolean(image.is_main),
+          })),
+        );
       })
       .catch((error) => toastError(error instanceof ApiError ? error.message : 'Could not load the product'))
       .finally(() => setLoading(false));
@@ -521,10 +530,16 @@ export function ProductFormScreen({ productId }: { productId?: number }) {
       });
 
       images.forEach((file) => body.append('images[]', file));
+      if (mainImageIndex !== null) body.append('main_image_index', String(mainImageIndex));
 
-      const { data, message } = await apiWithMessage<{ product_id: number }>(
+      // Product photography is the only heavy part of this form, so the save
+      // reports real upload progress rather than an indeterminate spinner.
+      if (images.length > 0) setUploadPercent(0);
+
+      const { data, message } = await uploadWithProgress<{ product_id: number }>(
         productId ? `/admin/products/${productId}` : '/admin/products',
-        { method: 'POST', auth: 'admin', body },
+        body,
+        { auth: 'admin', onProgress: images.length > 0 ? setUploadPercent : undefined },
       );
 
       toastSuccess(message);
@@ -533,6 +548,7 @@ export function ProductFormScreen({ productId }: { productId?: number }) {
       toastError(error instanceof ApiError ? error.message : 'Could not save the product');
     } finally {
       setBusy(false);
+      setUploadPercent(null);
     }
   };
 
@@ -1039,38 +1055,36 @@ export function ProductFormScreen({ productId }: { productId?: number }) {
             </Card>
 
             <Card title="Images" className="mt-4">
-              {existingImages.length > 0 && (
-                <div className="d-flex flex-wrap gap-2 mb-3">
-                  {existingImages.map((image) => (
-                    <div key={image.id} style={{ position: 'relative' }}>
-                      <img src={imageUrl(image.url)} alt="product" width={72} height={72} style={{ borderRadius: 6, objectFit: 'cover' }} />
-                      <button
-                        type="button"
-                        className="btn btn--sm btn-outline--danger"
-                        style={{ position: 'absolute', top: -8, right: -8, padding: '0 6px' }}
-                        onClick={async () => {
-                          try {
-                            await apiWithMessage(`/admin/products/media/${image.id}`, { method: 'DELETE', auth: 'admin' });
-                            setExistingImages((current) => current.filter((row) => row.id !== image.id));
-                          } catch (error) {
-                            toastError(error instanceof ApiError ? error.message : 'Could not remove the image');
-                          }
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <input
-                className="form-control"
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(event) => setImages(Array.from(event.target.files ?? []))}
+              <GalleryPicker
+                existing={existingImages}
+                onDeleteExisting={async (id) => {
+                  try {
+                    await apiWithMessage(`/admin/products/media/${id}`, { method: 'DELETE', auth: 'admin' });
+                    setExistingImages((current) => current.filter((row) => row.id !== id));
+                  } catch (error) {
+                    toastError(error instanceof ApiError ? error.message : 'Could not remove the image');
+                  }
+                }}
+                onSetExistingMain={
+                  productId
+                    ? async (id) => {
+                        try {
+                          await apiWithMessage(`/admin/products/media/${id}/main`, { method: 'POST', auth: 'admin' });
+                          setExistingImages((current) =>
+                            current.map((row) => ({ ...row, isMain: row.id === id })),
+                          );
+                        } catch (error) {
+                          toastError(error instanceof ApiError ? error.message : 'Could not set the main image');
+                        }
+                      }
+                    : undefined
+                }
+                files={images}
+                onFilesChange={setImages}
+                mainIndex={mainImageIndex}
+                onMainIndexChange={setMainImageIndex}
+                progress={uploadPercent}
               />
-              <small className="d-block mt-2 text-muted">The first upload becomes the main image when none is set.</small>
             </Card>
 
             <Card title="Shipping" className="mt-4">

@@ -257,3 +257,78 @@ export function query(params: Record<string, unknown>): string {
   const qs = search.toString();
   return qs ? `?${qs}` : '';
 }
+
+/**
+ * POST multipart form data, reporting real upload progress.
+ *
+ * `fetch` exposes no upload progress event, so a form carrying several
+ * megabytes of product photography over a slow connection can only show an
+ * indeterminate spinner. XHR does expose it, so image uploads go through here
+ * instead — same envelope, same auth, same {@link ApiError} on failure.
+ */
+export function uploadWithProgress<T>(
+  path: string,
+  body: FormData,
+  options: { auth?: 'user' | 'admin'; onProgress?: (percent: number) => void } = {},
+): Promise<{ data: T; message: string }> {
+  const { auth = 'admin', onProgress } = options;
+
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open('POST', `${API_URL}${path}`);
+    request.setRequestHeader('Accept', 'application/json');
+
+    const token = readToken(auth === 'admin' ? ADMIN_TOKEN_KEY : USER_TOKEN_KEY);
+    if (token) request.setRequestHeader('Authorization', `Bearer ${token}`);
+
+    // Deliberately no Content-Type: the browser has to set the multipart
+    // boundary itself, and overriding it makes the server see zero files.
+
+    if (onProgress) {
+      request.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          onProgress(Math.round((event.loaded / event.total) * 100));
+        }
+      });
+    }
+
+    request.addEventListener('load', () => {
+      let payload: ApiEnvelope<T> | null = null;
+
+      try {
+        payload = JSON.parse(request.responseText) as ApiEnvelope<T>;
+      } catch {
+        payload = null;
+      }
+
+      const ok = request.status >= 200 && request.status < 300;
+
+      if (!ok || payload?.status === 'error') {
+        reject(
+          new ApiError(
+            firstMessage(payload, `Request failed with status ${request.status}`),
+            request.status,
+            payload?.remark ?? 'error',
+            payload?.errors ?? {},
+          ),
+        );
+        return;
+      }
+
+      resolve({
+        data: (payload?.data ?? ({} as T)) as T,
+        message: firstMessage(payload, 'Saved'),
+      });
+    });
+
+    request.addEventListener('error', () =>
+      reject(new ApiError('Upload failed — check your connection and try again.', 0, 'error')),
+    );
+
+    request.addEventListener('abort', () =>
+      reject(new ApiError('Upload cancelled.', 0, 'error')),
+    );
+
+    request.send(body);
+  });
+}

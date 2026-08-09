@@ -5,10 +5,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { AdminPageHeader } from '@/components/admin/AdminShell';
 import { Card, DataTable, Field, Modal, StatusBadge } from '@/components/admin/ui';
 import { Rating } from '@/components/product/Rating';
-import { ApiError, api, apiWithMessage } from '@/lib/api';
+import { ApiError, api, apiWithMessage, uploadWithProgress } from '@/lib/api';
 import { formatDate, imageUrl } from '@/lib/format';
 import { toastError, toastSuccess } from '@/lib/toast';
 import type { CategoryNode, Pagination as PaginationMeta } from '@/types';
+import { SingleImagePicker } from '@/components/admin/ImagePicker';
 
 /* ================================ Categories ============================== */
 
@@ -35,6 +36,13 @@ export function CategoriesScreen() {
   const [form, setForm] = useState({ ...EMPTY_CATEGORY });
   const [icon, setIcon] = useState<File | null>(null);
   const [image, setImage] = useState<File | null>(null);
+  /** What the category already has stored, shown while editing. */
+  const [currentIcon, setCurrentIcon] = useState<string | null>(null);
+  const [currentImage, setCurrentImage] = useState<string | null>(null);
+  /** Set when the admin asks for a stored image to be cleared on save. */
+  const [clearIcon, setClearIcon] = useState(false);
+  const [clearImage, setClearImage] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -70,22 +78,29 @@ export function CategoriesScreen() {
       });
       if (icon) body.append('icon', icon);
       if (image) body.append('image', image);
+      if (clearIcon && !icon) body.append('remove_icon', '1');
+      if (clearImage && !image) body.append('remove_image', '1');
 
-      const { message } = await apiWithMessage(editingId ? `/admin/categories/${editingId}` : '/admin/categories', {
-        method: 'POST',
-        auth: 'admin',
+      if (icon || image) setUploadPercent(0);
+
+      const { message } = await uploadWithProgress(
+        editingId ? `/admin/categories/${editingId}` : '/admin/categories',
         body,
-      });
+        { auth: 'admin', onProgress: icon || image ? setUploadPercent : undefined },
+      );
 
       toastSuccess(message);
       setModalOpen(false);
       setIcon(null);
       setImage(null);
+      setClearIcon(false);
+      setClearImage(false);
       await load();
     } catch (error) {
       toastError(error instanceof ApiError ? error.message : 'Could not save the category');
     } finally {
       setBusy(false);
+      setUploadPercent(null);
     }
   };
 
@@ -111,6 +126,12 @@ export function CategoriesScreen() {
               type="button"
               onClick={() => {
                 setEditingId(node.id);
+                setCurrentIcon(node.icon);
+                setCurrentImage(node.image);
+                setClearIcon(false);
+                setClearImage(false);
+                setIcon(null);
+                setImage(null);
                 setForm({
                   name: node.name,
                   parent_id: node.parent_id ? String(node.parent_id) : '',
@@ -160,6 +181,12 @@ export function CategoriesScreen() {
           type="button"
           onClick={() => {
             setEditingId(null);
+            setCurrentIcon(null);
+            setCurrentImage(null);
+            setClearIcon(false);
+            setClearImage(false);
+            setIcon(null);
+            setImage(null);
             setForm({ ...EMPTY_CATEGORY });
             setModalOpen(true);
           }}
@@ -224,12 +251,29 @@ export function CategoriesScreen() {
             <Field label="Description" className="col-12">
               <input className="form-control" value={form.description} onChange={(event) => setForm((c) => ({ ...c, description: event.target.value }))} />
             </Field>
-            <Field label="Icon">
-              <input className="form-control" type="file" accept="image/*" onChange={(event) => setIcon(event.target.files?.[0] ?? null)} />
-            </Field>
-            <Field label="Banner image">
-              <input className="form-control" type="file" accept="image/*" onChange={(event) => setImage(event.target.files?.[0] ?? null)} />
-            </Field>
+            <SingleImagePicker
+              label="Icon"
+              currentUrl={clearIcon ? null : currentIcon}
+              file={icon}
+              onChange={(file) => {
+                setIcon(file);
+                if (file) setClearIcon(false);
+              }}
+              onClear={editingId ? () => setClearIcon(true) : undefined}
+              progress={uploadPercent}
+              hint="Square works best — shown in the category rail. JPG, PNG, GIF or WEBP, up to 5 MB."
+            />
+            <SingleImagePicker
+              label="Banner image"
+              currentUrl={clearImage ? null : currentImage}
+              file={image}
+              onChange={(file) => {
+                setImage(file);
+                if (file) setClearImage(false);
+              }}
+              onClear={editingId ? () => setClearImage(true) : undefined}
+              hint="Wide banner shown at the top of the category page. Up to 5 MB."
+            />
             <Field label="Meta title" className="col-12">
               <input className="form-control" value={form.meta_title} onChange={(event) => setForm((c) => ({ ...c, meta_title: event.target.value }))} />
             </Field>

@@ -9,6 +9,7 @@ import { useSettings } from '@/components/providers/AppProviders';
 import { ApiError, api } from '@/lib/api';
 import { toastError, toastSuccess } from '@/lib/toast';
 import type { CategoryNode } from '@/types';
+import { imageUrl } from '@/lib/format';
 
 /** Storefront footer, mirroring `partials/footer.blade.php`. */
 export function SiteFooter() {
@@ -262,7 +263,7 @@ export function SiteFooter() {
             {(settings?.footer_payments ?? []).map((payment) => (
               <li className="footer-payment__item" key={payment.id}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="footer-payment__logo" src={payment.image ?? ''} alt="image" />
+                <img className="footer-payment__logo" src={imageUrl(payment.image)} alt="image" />
               </li>
             ))}
           </ul>

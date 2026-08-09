@@ -1,3 +1,4 @@
+import { backendUrl } from '@/lib/api';
 /**
  * Presentation helpers. Currency formatting is centralised here so every
  * screen shows the same "TZS 1,500,000" shape the backend produces.
@@ -89,8 +90,30 @@ export function timeAgo(value: string | null | undefined): string {
 /** Placeholder used whenever a record has no uploaded image. */
 export const PLACEHOLDER_IMAGE = '/assets/images/default.png';
 
+/**
+ * The one place an API media value becomes a loadable `src`.
+ *
+ * The API returns absolute URLs built from the server's own APP_URL, so this
+ * normally passes them straight through. It handles the shapes that would
+ * otherwise render as a broken image or fall back to the placeholder and look
+ * like missing photography: a relative path from the backend, and a
+ * protocol-relative `//host`.
+ *
+ * The placeholder itself is an asset of this site, not the API's, so an empty
+ * value returns before any backend prefix is applied.
+ */
 export function imageUrl(value: string | null | undefined): string {
-  return value && value.length > 0 ? value : PLACEHOLDER_IMAGE;
+  const raw = value?.trim();
+
+  if (!raw) return PLACEHOLDER_IMAGE;
+  if (/^https?:\/\//i.test(raw) || raw.startsWith('data:')) return raw;
+  if (raw.startsWith('//')) return `https:${raw}`;
+
+  // Already one of our own static assets.
+  if (raw.startsWith('/assets/')) return raw;
+
+  const base = backendUrl();
+  return raw.startsWith('/') ? `${base}${raw}` : `${base}/${raw}`;
 }
 
 /** Strip HTML for meta descriptions and card excerpts. */
