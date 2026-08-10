@@ -27,8 +27,26 @@ const EMPTY_CATEGORY = {
   meta_keywords: '',
 };
 
+/**
+ * What `GET /admin/categories` really returns.
+ *
+ * The shared `CategoryNode` declares a nested `meta` object, but this endpoint
+ * sends `meta_title` / `meta_description` / `meta_keywords` flat, and also
+ * carries `status` and `position` which the shared type omits. Reading
+ * `node.meta.title` against this payload threw before the edit modal could
+ * open — which is why Edit appeared to do nothing.
+ */
+type AdminCategoryNode = Omit<CategoryNode, 'meta' | 'subcategories'> & {
+  status: boolean;
+  position: number | null;
+  meta_title: string | null;
+  meta_description: string | null;
+  meta_keywords: string | null;
+  subcategories: AdminCategoryNode[];
+};
+
 export function CategoriesScreen() {
-  const [tree, setTree] = useState<CategoryNode[]>([]);
+  const [tree, setTree] = useState<AdminCategoryNode[]>([]);
   const [flat, setFlat] = useState<{ id: number; name: string; parent_id: number | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -49,7 +67,7 @@ export function CategoriesScreen() {
     setLoading(true);
 
     try {
-      const data = await api<{ categories: CategoryNode[]; flat: { id: number; name: string; parent_id: number | null }[] }>(
+      const data = await api<{ categories: AdminCategoryNode[]; flat: { id: number; name: string; parent_id: number | null }[] }>(
         '/admin/categories',
         { auth: 'admin' },
       );
@@ -104,20 +122,36 @@ export function CategoriesScreen() {
     }
   };
 
-  const renderRows = (nodes: CategoryNode[], depth = 0): React.ReactNode =>
+  /** Parent's name for the listing, from the flat list the endpoint sends. */
+  const parentName = (parentId: number | null) =>
+    parentId ? (flat.find((row) => row.id === parentId)?.name ?? '—') : '—';
+
+  const renderRows = (nodes: AdminCategoryNode[], depth = 0): React.ReactNode =>
     nodes.map((node) => (
       <tr key={node.id}>
+        <td data-label="Image">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl(node.icon ?? node.image)}
+            alt=""
+            width={44}
+            height={44}
+            style={{ borderRadius: 8, objectFit: 'cover', background: '#f1f3f6', display: 'block' }}
+          />
+        </td>
         <td data-label="Category">
           <span style={{ paddingLeft: depth * 18 }}>
             {depth > 0 && <i className="las la-level-down-alt me-1" />}
             <strong>{node.name}</strong>
           </span>
+          <small className="d-block text-muted">{node.slug}</small>
         </td>
+        <td data-label="Parent">{parentName(node.parent_id)}</td>
         <td data-label="Products">{node.products_count ?? 0}</td>
         <td data-label="Navbar">{node.show_in_navbar ? 'Yes' : 'No'}</td>
         <td data-label="Popular">{node.is_popular ? 'Yes' : 'No'}</td>
         <td data-label="Status">
-          <StatusBadge active={Boolean(node.products_count !== null || true) && node.show_in_navbar !== undefined ? true : true} />
+          <StatusBadge active={node.status} />
         </td>
         <td data-label="Action" className="text-end">
           <div className="d-flex gap-2 justify-content-end">
@@ -136,14 +170,14 @@ export function CategoriesScreen() {
                   name: node.name,
                   parent_id: node.parent_id ? String(node.parent_id) : '',
                   description: node.description ?? '',
-                  position: '0',
+                  position: String(node.position ?? 0),
                   show_in_navbar: node.show_in_navbar,
                   is_top: node.is_top,
                   is_popular: node.is_popular,
-                  status: true,
-                  meta_title: node.meta.title ?? '',
-                  meta_description: node.meta.description ?? '',
-                  meta_keywords: node.meta.keywords ?? '',
+                  status: node.status,
+                  meta_title: node.meta_title ?? '',
+                  meta_description: node.meta_description ?? '',
+                  meta_keywords: node.meta_keywords ?? '',
                 });
                 setModalOpen(true);
               }}
@@ -197,10 +231,12 @@ export function CategoriesScreen() {
 
       <Card>
         <div className="table-responsive">
-          <table className="table table--light style--two">
+          <table className="table table--light style--two vp-table">
             <thead>
               <tr>
+                <th style={{ width: 72 }}>Image</th>
                 <th>Category</th>
+                <th>Parent</th>
                 <th>Products</th>
                 <th>Navbar</th>
                 <th>Popular</th>
@@ -211,7 +247,7 @@ export function CategoriesScreen() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={8}>
                     <div className="vp-skeleton vp-skeleton--line" />
                   </td>
                 </tr>

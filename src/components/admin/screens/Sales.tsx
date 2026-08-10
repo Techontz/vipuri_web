@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { AdminPageHeader, AdminWidget } from '@/components/admin/AdminShell';
 import { useAdmin } from '@/components/admin/AdminProviders';
-import { Card, DataTable, Field, Modal, StatusBadge } from '@/components/admin/ui';
+import { Card, DataTable, Field, Modal, StatusBadge , OrderStatusBadge } from '@/components/admin/ui';
 import { API_URL, ApiError, ADMIN_TOKEN_KEY, api, apiWithMessage, readToken } from '@/lib/api';
 import { formatDate, imageUrl, showAmount } from '@/lib/format';
 import { toastError, toastSuccess } from '@/lib/toast';
@@ -170,7 +170,7 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
             },
             { key: 'branch', label: 'Branch', render: (order) => order.branch?.name ?? '—' },
             { key: 'date', label: 'Date', render: (order) => formatDate(order.created_at) },
-            { key: 'status', label: 'Status', render: (order) => <span className="badge badge--primary">{order.status_label}</span> },
+            { key: 'status', label: 'Status', render: (order) => <OrderStatusBadge status={order.status} label={order.status_label} /> },
             { key: 'payment', label: 'Payment', render: (order) => <span className="badge badge--info">{order.payment_status_label}</span> },
             { key: 'total', label: 'Total', align: 'end', render: (order) => showAmount(order.total) },
             {
@@ -282,7 +282,7 @@ export function OrderDetailScreen({ id }: { id: number }) {
         <div className="col-lg-8">
           <Card title="Items">
             <div className="table-responsive">
-              <table className="table table--light style--two">
+              <table className="table table--light style--two vp-table">
                 <thead>
                   <tr>
                     <th>Product</th>
@@ -295,7 +295,7 @@ export function OrderDetailScreen({ id }: { id: number }) {
                 <tbody>
                   {(order.items ?? []).map((item) => (
                     <tr key={item.id}>
-                      <td>
+                      <td data-label="Product">
                         <div className="d-flex align-items-center gap-3">
                           <img src={imageUrl(item.image)} alt={item.product_name ?? ''} width={40} height={40} style={{ borderRadius: 6, objectFit: 'cover' }} />
                           <div>
@@ -307,10 +307,10 @@ export function OrderDetailScreen({ id }: { id: number }) {
                           </div>
                         </div>
                       </td>
-                      <td className="text-end">{item.quantity}</td>
-                      <td className="text-end">{showAmount(item.price)}</td>
-                      <td className="text-end">{showAmount(item.total_tax)}</td>
-                      <td className="text-end">{showAmount(item.subtotal)}</td>
+                      <td data-label="Qty" className="text-end">{item.quantity}</td>
+                      <td data-label="Price" className="text-end">{showAmount(item.price)}</td>
+                      <td data-label="Tax" className="text-end">{showAmount(item.total_tax)}</td>
+                      <td data-label="Subtotal" className="text-end">{showAmount(item.subtotal)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -340,7 +340,7 @@ export function OrderDetailScreen({ id }: { id: number }) {
           {(order.deposits ?? []).length > 0 && (
             <Card title="Payments" className="mt-4">
               <div className="table-responsive">
-                <table className="table table--light style--two">
+                <table className="table table--light style--two vp-table">
                   <thead>
                     <tr>
                       <th>Reference</th>
@@ -352,10 +352,10 @@ export function OrderDetailScreen({ id }: { id: number }) {
                   <tbody>
                     {(order.deposits ?? []).map((deposit) => (
                       <tr key={deposit.id}>
-                        <td>{deposit.trx}</td>
-                        <td>{deposit.method ?? '—'}</td>
-                        <td>{formatDate(deposit.created_at)}</td>
-                        <td className="text-end">{showAmount(deposit.final_amount)}</td>
+                        <td data-label="Reference">{deposit.trx}</td>
+                        <td data-label="Method">{deposit.method ?? '—'}</td>
+                        <td data-label="Date">{formatDate(deposit.created_at)}</td>
+                        <td data-label="Amount" className="text-end">{showAmount(deposit.final_amount)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -388,7 +388,7 @@ export function OrderDetailScreen({ id }: { id: number }) {
 
           <Card title="Fulfilment" className="mt-4">
             <p className="mb-2">
-              Status: <span className="badge badge--primary">{order.status_label}</span>
+              Status: <OrderStatusBadge status={order.status} label={order.status_label} />
             </p>
             <p className="mb-3">
               Payment: <span className="badge badge--info">{order.payment_status_label}</span>

@@ -239,3 +239,415 @@ button.dropdown-item {
   gap: 8px;
   margin-top: 20px;
 }
+
+/* ==========================================================================
+   Responsive foundation
+   --------------------------------------------------------------------------
+   The purchased theme is desktop-first: it ships `data-label` on every table
+   cell but no rule that ever uses them, a sidebar that slides in with nothing
+   behind it, and fixed paddings that push content past the viewport on a
+   phone. Everything below is additive — no colour, type or spacing decision
+   from the theme is altered, so the visual identity is untouched.
+
+   Breakpoints, chosen to cover real devices rather than every listed width:
+     <=575   phones            (320 / 360 / 375 / 390 / 414)
+     576-767 large phones
+     768-991 tablets
+     992+    desktop
+   ========================================================================== */
+
+/* --------------------------------------------------------------- overflow
+   The fix is `min-width: 0`, not `overflow-x: hidden`. A grid/flex child
+   defaults to `min-width: auto`, so one long word or a wide table refuses to
+   shrink and pushes the whole page sideways. Hiding that would conceal the
+   bug; this removes it.                                                     */
+.page-wrapper,
+.main-wrapper,
+.navbar-wrapper,
+.body-wrapper {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.body-wrapper *,
+.navbar-wrapper * {
+  min-width: 0;
+}
+
+/* Long order numbers, SKUs, emails and URLs are the usual culprits. */
+.table td,
+.card,
+.vp-page-header h4 {
+  overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------------- drawer */
+.vp-sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1040;
+  background: rgba(15, 23, 42, 0.5);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.vp-sidebar-overlay.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+
+body.vp-drawer-open {
+  overflow: hidden;
+}
+
+@media (min-width: 1200px) {
+  /* Desktop keeps the theme's permanent sidebar; the overlay must never show. */
+  .vp-sidebar-overlay {
+    display: none;
+  }
+
+  body.vp-drawer-open {
+    overflow: auto;
+  }
+}
+
+@media (max-width: 1199px) {
+  .sidebar {
+    z-index: 1050;
+  }
+
+  .res-sidebar-close-btn,
+  .res-sidebar-open-btn {
+    /* Comfortable touch targets — the theme ships ~24px icons. */
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* ---------------------------------------------------------------- top bar */
+@media (max-width: 767px) {
+  .navbar-wrapper {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .navbar__left,
+  .navbar__right {
+    min-width: 0;
+  }
+
+  /* Keep the hamburger, notifications and profile; the search box and any
+     long welcome text are the first things to go rather than being crushed. */
+  .navbar__left .navbar__search,
+  .navbar__left form {
+    display: none;
+  }
+
+  .navbar__action-list {
+    gap: 4px;
+  }
+
+  /* Dropdowns anchored to the right edge otherwise hang off-screen. */
+  .navbar__action-list .dropdown-menu {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-width: calc(100vw - 16px);
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+}
+
+/* ------------------------------------------------------- page container */
+.body-wrapper {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+@media (min-width: 768px) {
+  .body-wrapper {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .body-wrapper {
+    padding-left: 30px;
+    padding-right: 30px;
+  }
+}
+
+/* --------------------------------------------------------- page headers */
+.vp-page-header,
+.body-wrapper > .d-flex.justify-content-between:first-child {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+@media (max-width: 575px) {
+  .card-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .card-header .btn,
+  .vp-page-header .btn {
+    width: 100%;
+  }
+}
+
+/* ------------------------------------------------------------- tables
+   Below 768px a table stops being a grid and becomes one card per row. The
+   label comes from the `data-label` the markup already carries, so no
+   component had to be rewritten to get this.                              */
+@media (max-width: 767px) {
+  /* Only tables that opt in stop scrolling. The dashboard and Sales tables
+     carry no `data-label`, so stacking them would produce unlabelled cards —
+     they keep horizontal scroll until their cells are labelled. */
+  .table-responsive:has(.vp-table) {
+    overflow-x: visible;
+  }
+
+  .vp-table,
+  .vp-table tbody,
+  .vp-table tr,
+  .vp-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .vp-table thead {
+    /* Clipped rather than `display: none` so screen readers keep the header
+       association. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .vp-table tr {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 6px 12px;
+    margin-bottom: 12px;
+    background: #fff;
+  }
+
+  .vp-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border: 0;
+    border-bottom: 1px solid #f1f3f6;
+    text-align: left !important;
+  }
+
+  .vp-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .vp-table td::before {
+    content: attr(data-label);
+    flex: 0 0 42%;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  /* A cell with no label — usually the actions column — gets the full width
+     so its buttons are reachable rather than squeezed into 58%. */
+  .vp-table td:not([data-label])::before {
+    content: none;
+  }
+
+  .vp-table td:not([data-label]) {
+    justify-content: flex-start;
+  }
+
+  /* Skeleton and empty rows span the card rather than pretending to be one. */
+  .vp-table td[colspan]::before,
+  .vp-table td.table-empty::before {
+    content: none;
+  }
+
+  .vp-table td.table-empty {
+    justify-content: center;
+    text-align: center !important;
+  }
+
+  /* Actions wrap instead of overflowing the card. */
+  .vp-table td .d-flex {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+
+/* --------------------------------------------------------------- forms */
+@media (max-width: 767px) {
+  /* One column on phones, whatever the desktop grid asked for. */
+  .card-body [class*='col-md-'],
+  .card-body [class*='col-lg-'],
+  .card-body [class*='col-xl-'],
+  .modal-body [class*='col-md-'],
+  .modal-body [class*='col-lg-'] {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  .form-group {
+    margin-bottom: 14px;
+  }
+
+  /* 16px stops iOS zooming the viewport when a field takes focus. */
+  .form-control,
+  .form-select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  .btn {
+    min-height: 42px;
+  }
+}
+
+/* -------------------------------------------------------------- filters */
+@media (max-width: 767px) {
+  .admin-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .admin-filter-bar .form-group,
+  .admin-filter-bar .btn {
+    width: 100%;
+    margin: 0;
+  }
+}
+
+/* --------------------------------------------------------------- modals */
+@media (max-width: 767px) {
+  .modal-dialog {
+    max-width: calc(100vw - 20px);
+    margin: 10px auto;
+  }
+
+  .modal-content {
+    max-height: calc(100vh - 20px);
+  }
+
+  .modal-body {
+    max-height: calc(100vh - 160px);
+    overflow-y: auto;
+  }
+
+  .modal-header,
+  .modal-footer {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .modal-footer .btn {
+    width: 100%;
+  }
+}
+
+/* --------------------------------------------------------------- images
+   Nothing may push the page wider than the viewport.                      */
+.card img,
+.table img,
+.modal img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ---------------------------------------------------------------- cards */
+@media (max-width: 575px) {
+  .card-body {
+    padding: 14px;
+  }
+
+  .card-header {
+    padding: 12px 14px;
+  }
+}
+
+/* ------------------------------------------------ priority metrics (2×2)
+   The four order metrics stack one-per-row below 576px, which pushed the
+   recent-orders list to roughly y=695 on a 375px phone — past the fold, so a
+   worker scrolled before seeing any customer activity. A 2×2 grid halves that
+   without shrinking the figures, which stay the visual focus.
+
+   Scoped to `.vp-priority-metrics`, so every other widget row keeps the
+   theme's existing behaviour. Desktop is untouched: the Bootstrap columns
+   still govern from 576px up.                                              */
+@media (max-width: 575px) {
+  .vp-priority-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0;
+  }
+
+  .vp-priority-metrics > [class*='col-'] {
+    width: 100%;
+    max-width: 100%;
+    flex: none;
+    padding: 0;
+  }
+
+  .vp-priority-metrics .widget-seven {
+    height: 100%;
+    padding: 12px;
+  }
+
+  /* The icon is decoration; at half width the number needs the room. */
+  .vp-priority-metrics .widget-seven__content-icon {
+    display: none;
+  }
+
+  .vp-priority-metrics .widget-seven__arrow {
+    display: none;
+  }
+
+  .vp-priority-metrics .widget-seven__content-title {
+    font-size: 12px;
+    line-height: 1.3;
+    margin-bottom: 2px;
+  }
+
+  /* Kept large deliberately — the figure is the point of the card. */
+  .vp-priority-metrics .widget-seven__content-amount {
+    font-size: 22px;
+    line-height: 1.2;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Very narrow phones: trim padding rather than the number. */
+@media (max-width: 359px) {
+  .vp-priority-metrics {
+    gap: 8px;
+  }
+
+  .vp-priority-metrics .widget-seven {
+    padding: 10px;
+  }
+
+  .vp-priority-metrics .widget-seven__content-amount {
+    font-size: 20px;
+  }
+}

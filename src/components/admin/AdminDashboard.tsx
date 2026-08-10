@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { AdminPageHeader, AdminWidget } from '@/components/admin/AdminShell';
+import { OrderStatusBadge } from '@/components/admin/ui';
 import { useAdmin } from '@/components/admin/AdminProviders';
 import { api } from '@/lib/api';
 import { formatDate, showAmount, showCompactAmount } from '@/lib/format';
@@ -83,15 +84,115 @@ export function AdminDashboard() {
     <>
       <AdminPageHeader title={data?.scope === 'company' ? 'Company Dashboard' : `${data?.branch?.name} Dashboard`} />
 
+      {/* Orders first. A worker opening this on a phone should reach real
+          customer activity without scrolling past decorative statistics, so
+          the four counts that imply action come before everything else and
+          the recent orders sit directly under them. Every value is from the
+          existing dashboard response — no extra request, nothing derived. */}
+      <div className="row gy-4 vp-priority-metrics">
+        <div className="col-xxl-3 col-sm-6">
+          <AdminWidget title="Pending orders" value={w.orders_pending ?? 0} icon="las la-hourglass-half" bg="warning" href="/admin/orders?status=pending" />
+        </div>
+        <div className="col-xxl-3 col-sm-6">
+          <AdminWidget title="Processing" value={w.orders_processing ?? 0} icon="las la-cogs" bg="info" href="/admin/orders?status=processing" />
+        </div>
+        <div className="col-xxl-3 col-sm-6">
+          <AdminWidget title="Orders today" value={w.orders_today ?? 0} icon="las la-clock" bg="primary" href="/admin/orders" />
+        </div>
+        <div className="col-xxl-3 col-sm-6">
+          <AdminWidget title="Revenue today" value={showCompactAmount(w.revenue_today ?? 0)} icon="las la-money-bill-wave" bg="success" href="/admin/reports/sales" />
+        </div>
+      </div>
+
+      <div className="row gy-4 mt-1">
+        <div className="col-12">
+          <div className="card box-shadow3">
+            <div className="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+              {(w.orders_pending ?? 0) > 0 ? (
+                <>
+                  <div>
+                    <h5 className="mb-1">Orders needing attention</h5>
+                    <p className="mb-0 text-muted">
+                      {w.orders_pending} pending {(w.orders_pending ?? 0) === 1 ? 'order is' : 'orders are'} waiting to be confirmed.
+                    </p>
+                  </div>
+                  <Link className="btn btn--base" href="/admin/orders?status=pending">
+                    View pending orders
+                  </Link>
+                </>
+              ) : (
+                <div>
+                  <h5 className="mb-1">You&apos;re all caught up</h5>
+                  <p className="mb-0 text-muted">No pending orders right now.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="row gy-4 mt-1">
+        <div className="col-12">
+          <div className="card box-shadow3 h-100">
+            <div className="card-body">
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="card-title mb-0">Recent orders</h5>
+                <Link href="/admin/orders">View all</Link>
+              </div>
+              <div className="table-responsive">
+                {/* data-label on every cell is what lets Part 1's CSS turn
+                    these rows into readable cards below 768px. */}
+                <table className="table table--light style--two vp-table">
+                  <thead>
+                    <tr>
+                      <th>Order</th>
+                      <th>Customer</th>
+                      <th>Items</th>
+                      <th>Status</th>
+                      <th>Payment</th>
+                      <th className="text-end">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(data?.recent_orders ?? []).map((order) => (
+                      <tr key={order.id}>
+                        <td data-label="Order">
+                          <Link href={`/admin/orders/${order.id}`}>{order.order_number}</Link>
+                          <small className="d-block text-muted">{formatDate(order.created_at)}</small>
+                        </td>
+                        <td data-label="Customer">{order.customer?.name ?? order.guest?.name ?? 'Guest'}</td>
+                        <td data-label="Items">{order.items?.length ?? 0}</td>
+                        <td data-label="Status">
+                          <OrderStatusBadge status={order.status} label={order.status_label} />
+                        </td>
+                        <td data-label="Payment">
+                          <span className="badge badge--dark">{order.payment_status_label}</span>
+                        </td>
+                        <td data-label="Total" className="text-end">{showAmount(order.total)}</td>
+                      </tr>
+                    ))}
+                    {(data?.recent_orders ?? []).length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="table-empty">
+                          Your recent orders will appear here.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
       <div className="row gy-4">
         <div className="col-xxl-3 col-sm-6">
           <AdminWidget title="Total orders" value={w.orders_total ?? 0} icon="las la-shopping-cart" bg="primary" href="/admin/orders" />
         </div>
         <div className="col-xxl-3 col-sm-6">
           <AdminWidget title="Revenue" value={showCompactAmount(w.revenue_total ?? 0)} icon="las la-money-bill-wave" bg="success" href="/admin/reports/sales" />
-        </div>
-        <div className="col-xxl-3 col-sm-6">
-          <AdminWidget title="Pending orders" value={w.orders_pending ?? 0} icon="las la-hourglass-half" bg="warning" href="/admin/orders?status=pending" />
         </div>
         <div className="col-xxl-3 col-sm-6">
           <AdminWidget title="Low stock items" value={w.low_stock_items ?? 0} icon="las la-exclamation-triangle" bg="danger" href="/admin/inventory?low_stock=1" />
@@ -101,9 +202,6 @@ export function AdminDashboard() {
       <div className="row gy-4 mt-1">
         <div className="col-xxl-3 col-sm-6">
           <AdminWidget title="Revenue this month" value={showCompactAmount(w.revenue_month ?? 0)} icon="las la-calendar" bg="info" />
-        </div>
-        <div className="col-xxl-3 col-sm-6">
-          <AdminWidget title="Orders today" value={w.orders_today ?? 0} icon="las la-clock" bg="primary" />
         </div>
         <div className="col-xxl-3 col-sm-6">
           <AdminWidget title="Delivered" value={w.orders_delivered ?? 0} icon="las la-check-circle" bg="success" href="/admin/orders?status=delivered" />
@@ -162,52 +260,6 @@ export function AdminDashboard() {
       </div>
 
       <div className="row gy-4 mt-1">
-        <div className="col-xl-7">
-          <div className="card box-shadow3 h-100">
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <h5 className="card-title mb-0">Recent orders</h5>
-                <Link href="/admin/orders">View all</Link>
-              </div>
-              <div className="table-responsive">
-                <table className="table table--light style--two">
-                  <thead>
-                    <tr>
-                      <th>Order</th>
-                      <th>Customer</th>
-                      <th>Branch</th>
-                      <th>Status</th>
-                      <th className="text-end">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(data?.recent_orders ?? []).map((order) => (
-                      <tr key={order.id}>
-                        <td>
-                          <Link href={`/admin/orders/${order.id}`}>{order.order_number}</Link>
-                        </td>
-                        <td>{order.customer?.name ?? order.guest?.name ?? 'Guest'}</td>
-                        <td>{order.branch?.name ?? '—'}</td>
-                        <td>
-                          <span className="badge badge--primary">{order.status_label}</span>
-                        </td>
-                        <td className="text-end">{showAmount(order.total)}</td>
-                      </tr>
-                    ))}
-                    {(data?.recent_orders ?? []).length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="table-empty">
-                          No orders yet
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div className="col-xl-5">
           <div className="card box-shadow3 h-100">
             <div className="card-body">

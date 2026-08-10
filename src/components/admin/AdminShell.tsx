@@ -133,6 +133,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const { admin, loading, isAuthenticated, can, isSuperAdmin, logout } = useAdmin();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Stop the page behind the drawer scrolling while it is open. Keyed off the
+  // class so the rule lives with the rest of the responsive CSS.
+  useEffect(() => {
+    document.body.classList.toggle('vp-drawer-open', sidebarOpen);
+
+    return () => document.body.classList.remove('vp-drawer-open');
+  }, [sidebarOpen]);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [unread, setUnread] = useState(0);
@@ -189,6 +197,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="page-wrapper default-version">
       {/* ------------------------------ Sidebar ------------------------------ */}
+      {/* Tapping outside an open drawer closes it. Rendered before the
+          sidebar so it sits underneath, and hidden from assistive tech since
+          the close button is the labelled control. */}
+      <div
+        className={`vp-sidebar-overlay ${sidebarOpen ? 'is-open' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
+      />
+
       <div className={`sidebar bg--dark ${sidebarOpen ? 'active' : ''}`}>
         <button className="res-sidebar-close-btn" type="button" onClick={() => setSidebarOpen(false)}>
           <i className="las la-times" />

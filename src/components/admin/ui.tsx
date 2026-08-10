@@ -55,7 +55,7 @@ export function DataTable<T>({
   return (
     <>
       <div className="table-responsive">
-        <table className="table table--light style--two">
+        <table className="table table--light style--two vp-table">
           <thead>
             <tr>
               {columns.map((column) => (
@@ -167,6 +167,26 @@ export function Modal({
 
 export function StatusBadge({ active, labels = ['Active', 'Inactive'] }: { active: boolean; labels?: [string, string] }) {
   return <span className={`badge badge--${active ? 'success' : 'warning'}`}>{active ? labels[0] : labels[1]}</span>;
+}
+
+/**
+ * Order status, coloured by what it asks of the reader.
+ *
+ * Values come from the backend's Status constants — 0 pending, 2 processing,
+ * 3 dispatched, 4 delivered, 7 cancelled — and the label is whatever the API
+ * sent, so nothing is invented here. Orange means "needs attention", which is
+ * why only pending carries it.
+ */
+export function OrderStatusBadge({ status, label }: { status: number; label: string }) {
+  const tone =
+    status === 0 ? 'warning'
+      : status === 2 ? 'info'
+        : status === 3 ? 'primary'
+          : status === 4 ? 'success'
+            : status === 7 ? 'danger'
+              : 'dark';
+
+  return <span className={`badge badge--${tone}`}>{label}</span>;
 }
 
 export function StockPill({ quantity, minimum = 0 }: { quantity: number; minimum?: number }) {

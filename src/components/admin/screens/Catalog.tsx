@@ -330,7 +330,7 @@ export function ProductFormScreen({ productId }: { productId?: number }) {
 
     api<{
       product: Record<string, unknown>;
-      raw: { category_ids: number[]; attribute_ids: number[]; grouped_ids: number[]; up_sell_ids: number[]; cross_sell_ids: number[] };
+      raw: { tax_class: number; stock_unit_id: number; category_ids: number[]; attribute_ids: number[]; grouped_ids: number[]; up_sell_ids: number[]; cross_sell_ids: number[] };
       branch_inventory: { branch_id: number; variation_id: number; stock_quantity: number; min_stock_quantity: number; shelf_location: string | null }[];
     }>(`/admin/products/${productId}`, { auth: 'admin' })
       .then((data) => {
@@ -370,6 +370,12 @@ export function ProductFormScreen({ productId }: { productId?: number }) {
           specifications: product.specifications ?? [],
           regular_price: String(product.regular_price ?? ''),
           sale_price: String(product.sale_price ?? ''),
+          // Populated from `raw`, not from `product.tax`, which carries the
+          // tax's name and rate but not its id. Leaving these unset left the
+          // selects empty, and an untouched select posts "" — which reached
+          // the database as null and broke the update.
+          tax_class: data.raw.tax_class ? String(data.raw.tax_class) : '',
+          stock_unit_id: data.raw.stock_unit_id ? String(data.raw.stock_unit_id) : '',
           tax_status: product.tax?.status ?? 'taxable',
           show_tax: product.tax?.show ?? true,
           sku: product.sku ?? '',
