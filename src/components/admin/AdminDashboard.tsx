@@ -268,7 +268,7 @@ export function AdminDashboard() {
                 <Link href="/admin/inventory?low_stock=1">Manage</Link>
               </div>
               <div className="table-responsive">
-                <table className="table table--light style--two">
+                <table className="table table--light style--two vp-table">
                   <thead>
                     <tr>
                       <th>Product</th>
@@ -279,9 +279,9 @@ export function AdminDashboard() {
                   <tbody>
                     {(data?.low_stock ?? []).map((row, index) => (
                       <tr key={`${row.product_id}-${index}`}>
-                        <td>{row.product_name}</td>
-                        <td>{row.branch}</td>
-                        <td className="text-end">
+                        <td data-label="Product">{row.product_name}</td>
+                        <td data-label="Branch">{row.branch}</td>
+                        <td data-label="Stock" className="text-end">
                           <span className={`stock-pill ${row.stock_quantity <= 0 ? 'out' : 'low'}`}>
                             {row.stock_quantity}
                           </span>
@@ -313,7 +313,7 @@ export function AdminDashboard() {
                   <Link href="/admin/branches/performance">Full report</Link>
                 </div>
                 <div className="table-responsive">
-                  <table className="table table--light style--two">
+                  <table className="table table--light style--two vp-table">
                     <thead>
                       <tr>
                         <th>Branch</th>
@@ -328,19 +328,19 @@ export function AdminDashboard() {
                     <tbody>
                       {data.branch_summary.map((branch) => (
                         <tr key={branch.id}>
-                          <td>
+                          <td data-label="Branch">
                             <Link href={`/admin/branches/${branch.id}`}>{branch.name}</Link>
                           </td>
-                          <td>{branch.city ?? '—'}</td>
-                          <td>
+                          <td data-label="City">{branch.city ?? '—'}</td>
+                          <td data-label="Status">
                             <span className={`badge badge--${branch.status ? 'success' : 'warning'}`}>
                               {branch.status ? 'Active' : 'Inactive'}
                             </span>
                           </td>
-                          <td className="text-end">{branch.orders}</td>
-                          <td className="text-end">{showAmount(branch.revenue)}</td>
-                          <td className="text-end">{branch.staff}</td>
-                          <td className="text-end">{branch.low_stock}</td>
+                          <td data-label="Orders" className="text-end">{branch.orders}</td>
+                          <td data-label="Revenue" className="text-end">{showAmount(branch.revenue)}</td>
+                          <td data-label="Staff" className="text-end">{branch.staff}</td>
+                          <td data-label="Low stock" className="text-end">{branch.low_stock}</td>
                         </tr>
                       ))}
                     </tbody>

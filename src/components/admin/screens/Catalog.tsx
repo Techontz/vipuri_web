@@ -711,7 +711,7 @@ export function ProductFormScreen({ productId }: { productId?: number }) {
             <Card title="Branch stock" className="mt-4">
               <p>Set how many units each VIPURI branch holds. The catalogue total is the sum of these rows.</p>
               <div className="table-responsive">
-                <table className="table table--light style--two">
+                <table className="table table--light style--two vp-table">
                   <thead>
                     <tr>
                       <th>Branch</th>
@@ -746,10 +746,10 @@ export function ProductFormScreen({ productId }: { productId?: number }) {
 
                       return (
                         <tr key={branch.id}>
-                          <td>
+                          <td data-label="Branch">
                             {branch.name} <span style={{ fontSize: 13 }}>({branch.code})</span>
                           </td>
-                          <td>
+                          <td data-label="Quantity">
                             <input
                               className="form-control"
                               type="number"
@@ -758,7 +758,7 @@ export function ProductFormScreen({ productId }: { productId?: number }) {
                               onChange={(event) => setValue('stock_quantity', event.target.value)}
                             />
                           </td>
-                          <td>
+                          <td data-label="Low-stock threshold">
                             <input
                               className="form-control"
                               type="number"
@@ -767,7 +767,7 @@ export function ProductFormScreen({ productId }: { productId?: number }) {
                               onChange={(event) => setValue('min_stock_quantity', event.target.value)}
                             />
                           </td>
-                          <td>
+                          <td data-label="Shelf">
                             <input
                               className="form-control"
                               value={row?.shelf_location ?? ''}

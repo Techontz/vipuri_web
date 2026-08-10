@@ -73,6 +73,9 @@ const MENU: (MenuItem | { header: string })[] = [
   { label: 'Orders', href: '/admin/orders', icon: 'las la-shopping-cart', permission: 'order.view' },
   { label: 'Payments', href: '/admin/deposits', icon: 'las la-money-check', permission: 'deposit.view' },
   { label: 'Customers', href: '/admin/customers', icon: 'las la-users', permission: 'customer.view' },
+  /* A worker holds `commission.view_own`, so this is their own statement;
+     a manager holds `view_all` and sees the branch. */
+  { label: 'Commission', href: '/admin/commissions', icon: 'las la-hand-holding-usd', permission: 'commission.view_own' },
 
   { header: 'Marketing' },
   {
@@ -299,11 +302,19 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <div className="navbar__right">
           <ul className="navbar__action-list">
             <li>
-              <button type="button" className="primary--layer" title="Visit storefront">
-                <a href="/" target="_blank" rel="noreferrer">
-                  <i className="las la-globe" />
-                </a>
-              </button>
+              {/* One control, not an anchor nested inside a button: the inner
+                  anchor was the only thing tappable and measured 24×27, and a
+                  link inside a button is not valid interactive content. */}
+              <a
+                className="primary--layer"
+                href="/"
+                target="_blank"
+                rel="noreferrer"
+                title="Visit storefront"
+                aria-label="Visit storefront"
+              >
+                <i className="las la-globe" />
+              </a>
             </li>
 
             <li className="dropdown">

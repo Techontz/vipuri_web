@@ -27,9 +27,19 @@ button.dropdown-item {
   border: 0;
 }
 
-/* Mobile sidebar toggle driven by React rather than the theme's jQuery. */
+/* Mobile sidebar toggle driven by React rather than the theme's jQuery.
+
+   The theme hides the drawer with `left: -285px` below 992px and reveals it
+   with `.sidebar.open`; the React shell toggles `.active` instead, so that
+   rule never fired and the menu stayed off-screen on every phone — the overlay
+   appeared and the page locked behind nothing. Measured: with `.active`
+   applied the sidebar sat at left -285px, right -35px.
+
+   `left: 0` takes the theme's offset out of play across the whole range, and
+   the transform does the hiding, so one mechanism governs at every width. */
 @media (max-width: 1199px) {
   .sidebar {
+    left: 0;
     transform: translateX(-100%);
     transition: transform 0.3s ease;
   }
@@ -450,14 +460,26 @@ body.vp-drawer-open {
     border: 0;
     border-bottom: 1px solid #f1f3f6;
     text-align: left !important;
+    /* The theme sets `white-space: nowrap` on every cell. In a stacked card
+       that is a long product name refusing to break, and 334px of document
+       inside a 320px phone. */
+    white-space: normal;
   }
 
   .vp-table td:last-child {
     border-bottom: 0;
   }
 
+  /* The theme ships `[data-label]::before { position: absolute; display: none }`
+     — the hook exists but is switched off, and it is *less* specific than this
+     rule only for the properties this rule actually declares. Both `display`
+     and `position` therefore have to be restated, or the label is laid out
+     absolutely and then hidden, and every stacked card comes out unlabelled. */
   .vp-table td::before {
     content: attr(data-label);
+    display: block;
+    position: static;
+    padding: 0;
     flex: 0 0 42%;
     font-size: 12px;
     font-weight: 600;
@@ -470,6 +492,7 @@ body.vp-drawer-open {
      so its buttons are reachable rather than squeezed into 58%. */
   .vp-table td:not([data-label])::before {
     content: none;
+    display: none;
   }
 
   .vp-table td:not([data-label]) {
@@ -480,6 +503,7 @@ body.vp-drawer-open {
   .vp-table td[colspan]::before,
   .vp-table td.table-empty::before {
     content: none;
+    display: none;
   }
 
   .vp-table td.table-empty {
@@ -514,11 +538,42 @@ body.vp-drawer-open {
   .form-control,
   .form-select {
     font-size: 16px;
+  }
+}
+
+/* Field and control sizing holds all the way to the desktop breakpoint — a
+   768px tablet is still a touch device, and the theme's selects measured 38px
+   there. */
+@media (max-width: 991px) {
+  .form-control,
+  .form-select,
+  input[type='date'],
+  input[type='text'],
+  input[type='number'],
+  input[type='email'],
+  input[type='password'] {
     min-height: 44px;
   }
 
-  .btn {
-    min-height: 42px;
+  /* A checkbox's real target is its label, which every one of these has. The
+     row is given the 44px; the box itself only needs to be easy to see. */
+  .form-check {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 0;
+  }
+
+  .form-check .form-check-input {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    flex: 0 0 20px;
+  }
+
+  .form-check .form-check-label {
+    margin: 0;
   }
 }
 
@@ -650,4 +705,794 @@ body.vp-drawer-open {
   .vp-priority-metrics .widget-seven__content-amount {
     font-size: 20px;
   }
+}
+
+/* ==========================================================================
+   Order detail
+   --------------------------------------------------------------------------
+   A branch worker reads this page on a phone, in order: who the order is for,
+   what is in it, what has been paid, who last touched it, then what to do
+   about it. That is the DOM order below, so no CSS is needed to get it on a
+   phone — the grid is a single column and everything simply stacks.
+
+   From 992px the same markup is placed into two columns with
+   `grid-template-areas`. Nothing is rendered twice and no card is duplicated
+   per breakpoint, so there is only ever one copy of each image in the DOM.
+   ========================================================================== */
+
+.vp-order-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.vp-order-state__meta {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.vp-order-layout {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'customer'
+    'items'
+    'payment'
+    'processing'
+    'actions'
+    'deposits'
+    'history';
+}
+
+.vp-order-layout > .card {
+  margin-bottom: 0;
+  /* Grid children default to `min-width: auto`, so one long SKU or address
+     would otherwise widen the whole column past the viewport. */
+  min-width: 0;
+}
+
+.vp-order-area--customer { grid-area: customer; }
+.vp-order-area--items { grid-area: items; }
+.vp-order-area--payment { grid-area: payment; }
+.vp-order-area--processing { grid-area: processing; }
+.vp-order-area--actions { grid-area: actions; }
+.vp-order-area--deposits { grid-area: deposits; }
+.vp-order-area--history { grid-area: history; }
+
+/* Two columns only from 1200px. At 1024 the measured side column came out at
+   about 220px and the items table needed 468px in the 442px left over — the
+   split cost more than it bought, so a tablet gets the full width instead. */
+@media (min-width: 1200px) {
+  .vp-order-layout {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    align-items: start;
+    grid-template-areas:
+      'items      actions'
+      'items      payment'
+      'deposits   customer'
+      'history    processing';
+  }
+}
+
+/* ------------------------------------------------------------- actions */
+
+.vp-order-action {
+  /* Comfortably above the 44px minimum, and never a hairline target on a
+     phone: every action button here is full width. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 16px;
+}
+
+.vp-order-action--primary {
+  font-size: 16px;
+  font-weight: 600;
+  min-height: 52px;
+}
+
+.vp-order-secondary {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.vp-order-secondary__label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+/* One action per row rather than a crowded strip of small buttons. */
+.vp-order-secondary__buttons {
+  display: grid;
+  gap: 8px;
+}
+
+.vp-order-hint {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+/* ------------------------------------------------------------- payment */
+
+.vp-order-total {
+  font-size: 17px;
+}
+
+.vp-order-payment-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.vp-order-subhead {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: rgba(0, 0, 0, 0.5);
+  margin-bottom: 6px;
+}
+
+/* ------------------------------------------------ confirmation dialog */
+
+.vp-order-transition {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.vp-order-transition i {
+  font-size: 20px;
+  color: rgba(0, 0, 0, 0.4);
+}
+
+/* The server's own words, kept on screen after the toast has gone. */
+.vp-order-error {
+  margin: 4px 0 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(240, 68, 56, 0.35);
+  background: rgba(240, 68, 56, 0.08);
+  color: #b42318;
+  font-size: 14px;
+}
+
+.vp-order-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.vp-order-dialog-actions .btn {
+  min-height: 46px;
+  flex: 1 1 160px;
+}
+
+@media (max-width: 575px) {
+  .vp-order-dialog-actions .btn {
+    flex: 1 1 100%;
+  }
+}
+
+/* ==========================================================================
+   VIPURI identity — dark navy and orange
+   --------------------------------------------------------------------------
+   The purchased theme is indigo (#4634ff) with a near-black-blue dark surface
+   (#071251). VIPURI trades on orange: `general_settings.base_color` is FF7A00,
+   and the storefront and the dashboard chart already use it.
+
+   `app.css` is left byte-for-byte as purchased. Everything below overrides it
+   from this file, so a theme update can be dropped in without losing the
+   identity. The theme routes most of its colour through a per-component
+   `--color` custom property, so the majority of this is redefining that on the
+   handful of classes that set it; the rest are the places it hardcodes a hex.
+
+   Contrast, deliberately:
+   - #ff7a00 with white text is 2.6:1 and fails. Solid orange buttons therefore
+     carry dark navy text instead (6.5:1), which is also the more premium look.
+   - Orange as *text* on white is likewise too pale, so anything that used the
+     indigo for type — links, breadcrumbs, badges, outline buttons — uses the
+     deeper #b35400 (5.0:1) rather than the bright brand orange.
+   ========================================================================== */
+
+:root {
+  --vp-orange: #ff7a00;
+  --vp-orange-hover: #ea6f00;
+  --vp-orange-ink: #b35400; /* orange dark enough to be read as text */
+  --vp-orange-soft: rgba(255, 122, 0, 0.12);
+  --vp-navy: #0e1b33;
+  --vp-navy-deep: #081221;
+  --vp-ink: #11203a; /* text on an orange fill */
+}
+
+/* ------------------------------------------------------------- surfaces */
+
+.bg--dark,
+.sidebar.bg--dark,
+.navbar-wrapper.bg--dark {
+  --color: var(--vp-navy);
+}
+
+.sidebar .version-info,
+.sidebar__menu-wrapper::-webkit-scrollbar-track {
+  background-color: var(--vp-navy-deep);
+  background: var(--vp-navy-deep);
+}
+
+.configure-card-header {
+  background-image: linear-gradient(45deg, var(--vp-orange), var(--vp-navy)) !important;
+}
+
+/* -------------------------------------------------------------- buttons */
+
+.btn--primary {
+  --color: var(--vp-orange);
+  /* Dark type on the orange fill — see the contrast note above. */
+  --btn-color: var(--vp-ink);
+  font-weight: 600;
+}
+
+.btn--primary:hover,
+.btn--primary:active,
+.btn--primary:focus,
+.btn--primary:focus-visible {
+  --color: var(--vp-orange-hover);
+}
+
+.btn-outline--primary {
+  --color: var(--vp-orange-ink);
+  --btn-color: #fff;
+}
+
+.btn--primary.btn--gradi,
+.btn-primary.btn--gradi {
+  background-image: linear-gradient(30deg, var(--vp-orange), rgba(255, 154, 51, 0.65)) !important;
+}
+
+.icon-btn {
+  background-color: var(--vp-orange);
+  color: var(--vp-ink);
+}
+
+/* --------------------------------------------------------------- accent */
+
+.bg--primary {
+  --color: var(--vp-orange);
+}
+
+.text--primary,
+.page-breadcrumb li a,
+.breadcrumb-nav li.active a,
+.dropdown-menu__footer .view-all-message:hover,
+.mailsent .envelope i,
+.mail-icon {
+  color: var(--vp-orange-ink) !important;
+}
+
+.badge--primary {
+  background-color: var(--vp-orange-soft);
+  border-color: var(--vp-orange-ink);
+  color: var(--vp-orange-ink);
+}
+
+.border--primary {
+  border-color: var(--vp-orange) !important;
+}
+
+.bl--5-primary {
+  border-left-color: var(--vp-orange) !important;
+}
+
+[class*='overlay'].overlay--primary::before,
+.pulse--primary,
+.progress-bar,
+.file-upload-wrapper:before,
+.short-codes:before,
+.mailsent .envelope .line,
+.notification-via.active .active-badge {
+  background-color: var(--vp-orange) !important;
+}
+
+.nav-tabs-primary .nav-item a.active {
+  border-bottom-color: var(--vp-orange);
+  color: var(--vp-orange-ink);
+}
+
+.notification-via.active,
+.select2-dropdown {
+  border-color: var(--vp-orange);
+}
+
+/* ---------------------------------------------------------------- forms
+   The focus ring is the one place the bright orange belongs on white: it is
+   a boundary, not type, so 3:1 is the bar and #ff7a00 clears it.           */
+
+.form-control:focus,
+.form-control:active,
+.form-control:focus-within,
+.form-select:focus,
+input:focus,
+textarea:focus,
+select:focus,
+.navbar-search .navbar-search-field:focus,
+.pincode-input-container input:focus,
+.select2-container--open .select2-selection.select2-selection--single,
+.select2-container--open .select2-selection.select2-selection--multiple {
+  border-color: var(--vp-orange) !important;
+  box-shadow: 0 0 0 3px rgba(255, 122, 0, 0.18);
+}
+
+.form-check-primary .custom-control-input:checked ~ .custom-control-label::before,
+.form-check-input:checked {
+  border-color: var(--vp-orange) !important;
+  background-color: var(--vp-orange) !important;
+}
+
+/* --------------------------------------------------------------- tables
+   The theme paints table headers in the full brand colour. A solid orange
+   band across every table is loud and, with white type, unreadable — so the
+   header becomes a quiet navy tint with an orange rule beneath it.         */
+
+table.table--light thead th,
+table.dataTable thead tr,
+table.dataTable thead th {
+  background-color: #f6f7fa !important;
+  color: var(--vp-navy) !important;
+  border-bottom: 2px solid var(--vp-orange) !important;
+  font-weight: 600;
+}
+
+.pagination .page-item.active .page-link,
+.dataTables_paginate .pagination .page-item.active .page-link {
+  background-color: var(--vp-orange);
+  border-color: var(--vp-orange);
+  color: var(--vp-ink);
+}
+
+/* -------------------------------------------------------------- sidebar */
+
+.sidebar .res-sidebar-close-btn,
+.sidebar .slimScrollDiv .slimScrollBar,
+.sidebar__menu-wrapper::-webkit-scrollbar-thumb,
+.sidebar__menu-wrapper::-webkit-scrollbar-thumb:hover {
+  background-color: var(--vp-orange) !important;
+}
+
+.sidebar__menu .sidebar-menu-item .side-menu--open,
+.sidebar__menu .sidebar-menu-item.active > a,
+.sidebar[class*='bg--'] .sidebar__menu .sidebar-menu-item .side-menu--open,
+.sidebar.pill--bg-1 .sidebar-menu-item .side-menu--open,
+.sidebar.pill--bg-1 .sidebar-menu-item.active > a {
+  background-color: var(--vp-orange) !important;
+  color: var(--vp-ink) !important;
+}
+
+.sidebar__menu .sidebar-menu-item.active > a .menu-icon,
+.sidebar__menu .sidebar-menu-item.active > a .menu-title {
+  color: var(--vp-ink) !important;
+}
+
+/* Hover is a tint of the brand rather than the brand itself, so the current
+   page stays the only solid block in the list. */
+.sidebar__menu .sidebar-menu-item > a:hover,
+.sidebar[class*='bg--'] .sidebar__menu .sidebar-menu-item > a:hover,
+.sidebar__menu .sidebar-submenu .sidebar-menu-item.active > a {
+  background-color: var(--vp-orange-soft) !important;
+}
+
+.sidebar__menu .sidebar-menu-item > a:hover .menu-icon,
+.sidebar__menu .sidebar-menu-item > a:hover .menu-title,
+.sidebar__menu .sidebar-submenu .sidebar-menu-item.active a .menu-icon,
+.sidebar__menu .sidebar-submenu .sidebar-menu-item.active a .menu-title,
+.sidebar__menu .sidebar-submenu .sidebar-menu-item a:hover .menu-icon,
+.sidebar__menu .sidebar-submenu .sidebar-menu-item a:hover .menu-title,
+.sidebar[class*='bg--white'] .sidebar__menu .sidebar-menu-item > a:hover .menu-icon {
+  color: var(--vp-orange) !important;
+  text-shadow: none !important;
+}
+
+.capsule--block .sidebar-menu-item.active a,
+.capsule--block .sidebar-menu-item.sidebar-dropdown .side-menu--open {
+  border-left-color: var(--vp-orange) !important;
+}
+
+/* ---------------------------------------------------------------- cards
+   Restrained: a hairline border and a shallow shadow, so the page reads as a
+   set of surfaces rather than a stack of floating boxes.                   */
+
+.card.box-shadow3 {
+  border: 1px solid #e6e9f0;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(14, 27, 51, 0.05);
+}
+
+.card.box-shadow3 > .card-header {
+  background: transparent;
+  border-bottom: 1px solid #eef0f5;
+}
+
+.card .card-title {
+  font-weight: 600;
+  color: var(--vp-navy);
+}
+
+.page-title {
+  color: var(--vp-navy);
+  font-weight: 600;
+}
+
+/* The dashboard/report chart already used the brand orange; keep them in
+   step with the token rather than repeating the literals. */
+.mini-chart__bar {
+  background: linear-gradient(180deg, #ff9a33, var(--vp-orange));
+}
+
+/* --------------------------------------------------- login and skeletons */
+
+.admin-login {
+  background: var(--vp-navy);
+}
+
+.admin-login__card {
+  border-top: 4px solid var(--vp-orange);
+}
+
+/* --------------------------------------------------- table density
+   The theme pads every cell 25px left and right. With eight columns that is
+   400px of padding alone, so the orders table wanted 1563px and scrolled
+   sideways inside its card even on a 1280px laptop — measured, not assumed.
+   Tightening the padding is enough to fit it; no column had to be dropped.  */
+
+@media (min-width: 768px) {
+  table.table--light.style--two thead th,
+  table.table--light.style--two tbody td {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  table.table--light.style--two tbody td {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  table.table--light.style--two thead th:first-child,
+  table.table--light.style--two tbody td:first-child {
+    padding-left: 18px;
+  }
+
+  table.table--light.style--two thead th:last-child,
+  table.table--light.style--two tbody td:last-child {
+    padding-right: 18px;
+  }
+}
+
+@media (min-width: 1400px) {
+  table.table--light.style--two thead th,
+  table.table--light.style--two tbody td {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
+
+/* Tablets get the stacked cards too: between 768 and 991 a real table still
+   needed more width than the viewport, and a card per order reads better than
+   a sideways scroll. Only tables that opted in with `.vp-table` change. */
+@media (min-width: 768px) and (max-width: 991px) {
+  .table-responsive:has(.vp-table) {
+    overflow-x: visible;
+  }
+
+  .vp-table,
+  .vp-table tbody,
+  .vp-table tr,
+  .vp-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .vp-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .vp-table tr {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 6px 14px;
+    margin-bottom: 12px;
+    background: #fff;
+  }
+
+  .vp-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0 !important;
+    border: 0;
+    border-bottom: 1px solid #f1f3f6;
+    text-align: left !important;
+    white-space: normal;
+  }
+
+  .vp-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .vp-table td::before {
+    content: attr(data-label);
+    display: block;
+    position: static;
+    padding: 0;
+    flex: 0 0 30%;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .vp-table td:not([data-label])::before,
+  .vp-table td[colspan]::before,
+  .vp-table td.table-empty::before {
+    content: none;
+    display: none;
+  }
+
+  .vp-table td.table-empty {
+    justify-content: center;
+    text-align: center !important;
+  }
+}
+
+/* Every cell in the theme is `white-space: nowrap`, so a customer's e-mail
+   alone claimed 224px and the orders table could not fit a 1280px laptop even
+   after the padding was trimmed. Letting the opted-in tables wrap is what
+   actually removes the scroll; dates and money keep their single line. */
+@media (min-width: 992px) {
+  .vp-table thead th,
+  .vp-table tbody td {
+    white-space: normal;
+  }
+
+  .vp-table td.text-end,
+  .vp-table th.text-end {
+    white-space: nowrap;
+  }
+}
+
+/* Cells wrap at spaces, not mid-word. The responsive foundation set
+   `overflow-wrap: anywhere` on every cell to stop a long token widening the
+   page; on a laptop that turned order numbers into "VP2608097 8F4A0". Inside
+   an opted-in table the wrapping container is now the cell itself, so words
+   can stay whole. */
+@media (min-width: 992px) {
+  .vp-table td,
+  .vp-table th {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  .vp-table td.vp-nowrap,
+  .vp-table th.vp-nowrap {
+    white-space: nowrap;
+  }
+}
+
+/* The items table is mostly one long product name and four short numbers;
+   without a floor the name column collapses and wraps into a ribbon. Only
+   while it is still a table — once it stacks into cards, a 220px floor is
+   just something for a 320px phone to overflow. */
+@media (min-width: 992px) {
+  .vp-order-area--items .vp-table td:first-child,
+  .vp-order-area--items .vp-table th:first-child {
+    min-width: 220px;
+  }
+}
+
+/* Search is the field people actually use, so it takes the slack in the row
+   rather than being clipped to the same 180px as a date picker.
+
+   Desktop only: the bar is a *column* on a phone, where a flex-basis is a
+   height and this rule left a 260px hole under the search box. */
+@media (min-width: 768px) {
+  .admin-filter-bar .form-group:first-child {
+    flex: 1 1 260px;
+  }
+}
+
+/* ------------------------------------------------- collapsible filters
+   Five stacked controls pushed the orders list about 600px down a phone,
+   which defeats the point of an orders-first panel. Search stays visible;
+   the rest fold away until asked for. Above 768px there is room for all of
+   them, so the toggle disappears and everything shows unconditionally.    */
+
+.vp-filter-toggle {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .vp-filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .vp-filter-extra {
+    display: none;
+    width: 100%;
+  }
+
+  .vp-filter-extra.is-open {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+@media (min-width: 768px) {
+  /* Not a wrapper on desktop — its children join the filter row directly. */
+  .vp-filter-extra {
+    display: contents;
+  }
+}
+
+/* --------------------------------------------------------------- links
+   The theme leaves anchors at the Bootstrap blue, which reads as a third
+   brand colour next to the navy and the orange. */
+.body-wrapper a:not(.btn):not(.badge):not(.page-link):not([class*='sidebar']),
+.card a:not(.btn):not(.badge):not(.page-link) {
+  color: var(--vp-navy);
+  text-decoration: none;
+}
+
+.body-wrapper a:not(.btn):not(.badge):not(.page-link):not([class*='sidebar']):hover,
+.card a:not(.btn):not(.badge):not(.page-link):hover {
+  color: var(--vp-orange-ink);
+  text-decoration: underline;
+}
+
+/* The DataTable cell wrapper: invisible to layout on desktop, the single
+   value block when the table stacks into cards. */
+.vp-cell {
+  display: contents;
+}
+
+@media (max-width: 991px) {
+  .vp-table .vp-cell {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: right;
+  }
+
+  /* Actions read better left-aligned under their label than pushed to an
+     edge, and a button is not a value. */
+  .vp-table td:not([data-label]) .vp-cell {
+    text-align: left;
+  }
+}
+
+/* Status history: the entry and its timestamp sit on one line where there is
+   room. On a 320px phone a whole timestamp beside a remark needed 113px in the
+   56px left over, which is what pushed the document to 334px — so below 576px
+   they stack instead. */
+.vp-order-history-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.vp-order-history-item__at {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+}
+
+@media (max-width: 575px) {
+  .vp-order-history-item {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .vp-order-history-item__at {
+    white-space: normal;
+  }
+}
+
+/* --------------------------------------------------------- touch targets
+   Measured on a 390px viewport: the theme's top-bar icons came out 29×36,
+   pagination 36×36 and `.btn--sm` 42px tall — all under the 44px a thumb
+   needs. Desktop keeps the theme's compact sizing; a mouse does not.       */
+
+@media (max-width: 991px) {
+  .btn,
+  .btn--sm {
+    min-height: 44px;
+  }
+
+  .navbar__action-list > li > button,
+  .navbar__action-list > li > a,
+  .navbar__action-list .primary--layer {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pagination .page-link {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* 200px, not 220: the extra 20 was the last thing making the items table
+   scroll inside its card at 1280px. */
+@media (min-width: 992px) {
+  .vp-order-area--items .vp-table td:first-child,
+  .vp-order-area--items .vp-table th:first-child {
+    min-width: 200px;
+  }
+}
+
+/* --------------------------------------------------------- scheme notice
+   States the terms the figures on the page were produced under, so a total is
+   never shown without the rule that made it. */
+.vp-scheme-note {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 122, 0, 0.3);
+  background: var(--vp-orange-soft);
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.66);
+}
+
+.vp-scheme-note strong {
+  font-size: 15px;
+  color: var(--vp-navy);
+}
+
+.vp-scheme-note--off {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: #f6f7fa;
+}
+
+/* The storefront link is an anchor now rather than an anchor inside a button,
+   so it needs the top bar's own colour rather than the default link blue. */
+.navbar__action-list a.primary--layer,
+.navbar__action-list a.primary--layer:hover {
+  color: #fff;
+  text-decoration: none;
 }

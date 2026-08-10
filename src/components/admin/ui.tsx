@@ -44,7 +44,18 @@ export function DataTable<T>({
   onPageChange,
   rowKey,
 }: {
-  columns: { key: string; label: string; align?: 'start' | 'center' | 'end'; render: (row: T) => React.ReactNode }[];
+  /**
+   * `nowrap` keeps a column on one line. Cells wrap by default so a table can
+   * fit a laptop, but an order number, a date or an amount broken across two
+   * lines is harder to read, not easier.
+   */
+  columns: {
+    key: string;
+    label: string;
+    align?: 'start' | 'center' | 'end';
+    nowrap?: boolean;
+    render: (row: T) => React.ReactNode;
+  }[];
   rows: T[];
   loading?: boolean;
   empty?: string;
@@ -59,7 +70,10 @@ export function DataTable<T>({
           <thead>
             <tr>
               {columns.map((column) => (
-                <th key={column.key} className={column.align ? `text-${column.align}` : undefined}>
+                <th
+                  key={column.key}
+                  className={[column.align ? `text-${column.align}` : '', column.nowrap ? 'vp-nowrap' : ''].filter(Boolean).join(' ') || undefined}
+                >
                   {column.label}
                 </th>
               ))}
@@ -84,8 +98,20 @@ export function DataTable<T>({
               rows.map((row) => (
                 <tr key={rowKey(row)}>
                   {columns.map((column) => (
-                    <td key={column.key} data-label={column.label} className={column.align ? `text-${column.align}` : undefined}>
-                      {column.render(row)}
+                    <td
+                      key={column.key}
+                      data-label={column.label}
+                      className={[column.align ? `text-${column.align}` : '', column.nowrap ? 'vp-nowrap' : ''].filter(Boolean).join(' ') || undefined}
+                    >
+                      {/*
+                        A cell that renders two things — a name over an e-mail,
+                        an order number over its date — becomes two flex items
+                        once the table stacks into cards, and they end up side
+                        by side fighting for half a phone each. This wrapper
+                        keeps them one block. It is `display: contents` above
+                        the stacking breakpoint, so the table is unchanged.
+                      */}
+                      <span className="vp-cell">{column.render(row)}</span>
                     </td>
                   ))}
                 </tr>
