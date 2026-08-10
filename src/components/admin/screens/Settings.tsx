@@ -127,6 +127,54 @@ export function GeneralSettingsScreen() {
                 ))}
               </div>
 
+              {/*
+                Worker commission. The rate is 0 until somebody sets one, so an
+                installation that has never touched this records nothing — no
+                figure appears in anyone's statement that the business did not
+                choose.
+              */}
+              <h6 className="mt-4">Worker commission</h6>
+              <p className="text-muted" style={{ fontSize: 13 }}>
+                Recorded against a staff member when an order is marked delivered, and withdrawn if
+                that order is later returned or cancelled. Worked out on the order subtotal after
+                discount — delivery and tax are excluded.
+              </p>
+              <div className="form-check mb-3">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="setting-commission_enabled"
+                  checked={Boolean(settings.commission_enabled)}
+                  onChange={(event) => set('commission_enabled', event.target.checked)}
+                />
+                <label className="form-check-label" htmlFor="setting-commission_enabled">
+                  Run a commission scheme
+                </label>
+              </div>
+              <div className="row">
+                <Field label="Rate" hint="Percent of the order subtotal. 0 records nothing.">
+                  <input
+                    className="form-control"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={String(settings.commission_rate ?? 0)}
+                    onChange={(event) => set('commission_rate', Number(event.target.value))}
+                  />
+                </Field>
+                <Field label="Who earns it" hint="Read from the order's status history, which cannot be overwritten.">
+                  <select
+                    className="form-select"
+                    value={String(settings.commission_attribution ?? 'delivered_by')}
+                    onChange={(event) => set('commission_attribution', event.target.value)}
+                  >
+                    <option value="delivered_by">The staff member who marked it delivered</option>
+                    <option value="processed_by">The staff member who started fulfilment</option>
+                  </select>
+                </Field>
+              </div>
+
               <button className="btn btn--primary mt-4" type="submit" disabled={busy}>
                 {busy ? 'Saving…' : 'Save settings'}
               </button>
