@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { AdminPageHeader, AdminWidget } from '@/components/admin/AdminShell';
 import { useAdmin } from '@/components/admin/AdminProviders';
@@ -21,6 +21,44 @@ const ORDER_STATUS: { value: number; label: string }[] = [
   { value: 7, label: 'Cancelled' },
 ];
 
+/* ------------------------- Who may set which status ------------------------
+   These mirror the rules the API already enforces; they are not a second set
+   of rules. The server remains the authority — everything here only decides
+   which controls are worth showing, so a worker is never handed a button that
+   will come back 403.
+
+   `config('vipuri.order.worker_allowed_statuses')` keys its restriction off
+   the *role name*, so this does too rather than guessing from permissions.  */
+
+const WORKER_ROLE = 'Branch Worker';
+const WORKER_STATUSES = [2, 3, 4];
+
+/** The status's own name — not the wording of the button that reaches it. */
+function statusLabel(status: number): string {
+  return ORDER_STATUS.find((entry) => entry.value === status)?.label ?? String(status);
+}
+
+/** The permission a status needs beyond `order.update_status`, if any. */
+function statusPermission(status: number): string | null {
+  if (status === 7) return 'order.cancel';
+  if (status === 6) return 'order.return';
+  return null;
+}
+
+/**
+ * The step this order is most likely waiting for.
+ *
+ * Presentation only — it promotes one of the statuses the caller is already
+ * allowed to set, so it can be ignored entirely. Nothing here prevents any
+ * other transition, and the API is free to disagree.
+ */
+const NEXT_STEP: Record<number, { status: number; label: string }> = {
+  0: { status: 2, label: 'Process order' },
+  1: { status: 2, label: 'Process order' },
+  2: { status: 3, label: 'Mark dispatched' },
+  3: { status: 4, label: 'Mark delivered' },
+};
+
 /* ================================== Orders ================================ */
 
 export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus?: string; initialBranchId?: string }) {
@@ -39,6 +77,18 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
     to: '',
   });
   const [loading, setLoading] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  /* Any filter change starts again at page 1. Without this, narrowing the list
+     while on page 3 leaves you looking at an empty table and no explanation. */
+  const applyFilter = useCallback((patch: Partial<typeof filters>) => {
+    setFilters((current) => ({ ...current, ...patch }));
+    setPage(1);
+  }, []);
+
+  /* How many of the folded-away filters are actually doing something — the
+     badge on the toggle, so a narrowed list is never silently narrowed. */
+  const activeFilters = [filters.status, filters.branch_id, filters.from, filters.to].filter(Boolean).length;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,7 +130,9 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
     <>
       <AdminPageHeader title="Orders" />
 
-      <div className="row gy-4 mb-4">
+      {/* 2×2 on a phone rather than four full-width tiles, so the list itself
+          is still above the fold. Same treatment as the dashboard. */}
+      <div className="row gy-4 mb-4 vp-priority-metrics">
         <div className="col-xxl-3 col-sm-6">
           <AdminWidget title="All orders" value={widgets.order_total ?? 0} icon="las la-shopping-cart" bg="primary" />
         </div>
@@ -103,15 +155,23 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
               className="form-control"
               placeholder="Order number or customer"
               value={filters.search}
-              onChange={(event) => {
-                setFilters((current) => ({ ...current, search: event.target.value }));
-                setPage(1);
-              }}
+              onChange={(event) => applyFilter({ search: event.target.value })}
             />
           </div>
+          <button
+            type="button"
+            className="btn btn-outline--primary vp-filter-toggle"
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen((open) => !open)}
+          >
+            <i className="las la-filter" /> {filtersOpen ? 'Hide filters' : 'Filters'}
+            {activeFilters > 0 && <span className="badge badge--primary ms-1">{activeFilters}</span>}
+          </button>
+
+          <div className={`vp-filter-extra ${filtersOpen ? 'is-open' : ''}`}>
           <div className="form-group">
             <label className="form-label">Status</label>
-            <select className="form-select" value={filters.status} onChange={(event) => setFilters((c) => ({ ...c, status: event.target.value }))}>
+            <select className="form-select" value={filters.status} onChange={(event) => applyFilter({ status: event.target.value })}>
               <option value="">All</option>
               <option value="pending">Pending</option>
               <option value="processing">Processing</option>
@@ -127,7 +187,7 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
           {isSuperAdmin && (
             <div className="form-group">
               <label className="form-label">Branch</label>
-              <select className="form-select" value={filters.branch_id} onChange={(event) => setFilters((c) => ({ ...c, branch_id: event.target.value }))}>
+              <select className="form-select" value={filters.branch_id} onChange={(event) => applyFilter({ branch_id: event.target.value })}>
                 <option value="">All branches</option>
                 {branches.map((branch) => (
                   <option value={branch.id} key={branch.id}>
@@ -139,11 +199,12 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
           )}
           <div className="form-group">
             <label className="form-label">From</label>
-            <input className="form-control" type="date" value={filters.from} onChange={(event) => setFilters((c) => ({ ...c, from: event.target.value }))} />
+            <input className="form-control" type="date" value={filters.from} onChange={(event) => applyFilter({ from: event.target.value })} />
           </div>
           <div className="form-group">
             <label className="form-label">To</label>
-            <input className="form-control" type="date" value={filters.to} onChange={(event) => setFilters((c) => ({ ...c, to: event.target.value }))} />
+            <input className="form-control" type="date" value={filters.to} onChange={(event) => applyFilter({ to: event.target.value })} />
+          </div>
           </div>
         </div>
 
@@ -155,7 +216,25 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
           rowKey={(order) => order.id}
           empty="No orders found"
           columns={[
-            { key: 'number', label: 'Order', render: (order) => <Link href={`/admin/orders/${order.id}`}><strong>{order.order_number}</strong></Link> },
+            {
+              /* Number and date together: the date is what tells a worker how
+                 long an order has been waiting, and pairing them here buys the
+                 column the list needs to fit a laptop without a sideways
+                 scroll — measured at 1280px, not guessed. */
+              key: 'number',
+              label: 'Order',
+              nowrap: true,
+              render: (order) => (
+                <>
+                  <Link href={`/admin/orders/${order.id}`}>
+                    <strong>{order.order_number}</strong>
+                  </Link>
+                  <span className="d-block text-muted" style={{ fontSize: 13 }}>
+                    {formatDate(order.created_at)}
+                  </span>
+                </>
+              ),
+            },
             {
               key: 'customer',
               label: 'Customer',
@@ -168,15 +247,28 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
                 </>
               ),
             },
-            { key: 'branch', label: 'Branch', render: (order) => order.branch?.name ?? '—' },
-            { key: 'date', label: 'Date', render: (order) => formatDate(order.created_at) },
-            { key: 'status', label: 'Status', render: (order) => <OrderStatusBadge status={order.status} label={order.status_label} /> },
-            { key: 'payment', label: 'Payment', render: (order) => <span className="badge badge--info">{order.payment_status_label}</span> },
-            { key: 'total', label: 'Total', align: 'end', render: (order) => showAmount(order.total) },
+            /* Branch staff only ever see their own branch, so the column is
+               dead weight for them — and columns are what costs width. */
+            ...(isSuperAdmin
+              ? [{ key: 'branch', label: 'Branch', render: (order: Order) => order.branch?.name ?? '—' }]
+              : []),
+            { key: 'status', label: 'Status', nowrap: true, render: (order) => <OrderStatusBadge status={order.status} label={order.status_label} /> },
+            {
+              key: 'payment',
+              label: 'Payment',
+              nowrap: true,
+              render: (order) => (
+                <span className={`badge badge--${order.payment_status === 1 ? 'success' : 'warning'}`}>
+                  {order.payment_status_label}
+                </span>
+              ),
+            },
+            { key: 'total', label: 'Total', align: 'end', nowrap: true, render: (order) => <strong>{showAmount(order.total)}</strong> },
             {
               key: 'actions',
               label: 'Action',
               align: 'end',
+              nowrap: true,
               render: (order) => (
                 <Link href={`/admin/orders/${order.id}`} className="btn btn--sm btn-outline--primary">
                   Manage
@@ -192,13 +284,25 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
 
 /* ------------------------------ Order detail ------------------------------ */
 
+/** What the confirmation dialog is about to do. */
+type PendingAction =
+  | { kind: 'status'; status: number; label: string }
+  | { kind: 'paid' };
+
 export function OrderDetailScreen({ id }: { id: number }) {
-  const { can, isSuperAdmin } = useAdmin();
+  const { admin, can, isSuperAdmin } = useAdmin();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [branches, setBranches] = useState<{ id: number; name: string; code: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<PendingAction | null>(null);
+  const [remark, setRemark] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  /* State updates are batched, so `busy` is still false on a second click in
+     the same tick. The ref is what actually stops a double submission. */
+  const inFlight = useRef(false);
 
   const load = useCallback(async () => {
     try {
@@ -219,28 +323,84 @@ export function OrderDetailScreen({ id }: { id: number }) {
     void load();
   }, [load]);
 
+  /**
+   * Run the pending action, then reload before saying anything succeeded.
+   *
+   * Nothing is applied to the on-screen order optimistically: if the API
+   * refuses — a worker reaching for Cancelled, an order already closed — the
+   * dialog stays open carrying the reason the server gave, verbatim.
+   */
+  const runPendingAction = useCallback(async () => {
+    if (!order || !pending || inFlight.current) return;
+
+    inFlight.current = true;
+    setBusy(true);
+    setActionError(null);
+
+    try {
+      const { message } =
+        pending.kind === 'paid'
+          ? await apiWithMessage(`/admin/orders/${order.id}/mark-paid`, { method: 'POST', auth: 'admin' })
+          : await apiWithMessage(`/admin/orders/${order.id}/status`, {
+              method: 'POST',
+              auth: 'admin',
+              body: { status: pending.status, remark: remark.trim() || null },
+            });
+
+      await load();
+
+      toastSuccess(message);
+      setPending(null);
+      setRemark('');
+    } catch (error) {
+      const reason =
+        error instanceof ApiError
+          ? error.message
+          : 'That action could not be completed. Please try again.';
+
+      setActionError(reason);
+      toastError(reason);
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  }, [order, pending, remark, load]);
+
+  const closeDialog = useCallback(() => {
+    if (inFlight.current) return;
+    setPending(null);
+    setRemark('');
+    setActionError(null);
+  }, []);
+
   if (loading) return <div className="vp-skeleton" style={{ height: 300 }} />;
   if (!order) return <Card>Order not found.</Card>;
 
   const address = order.shipping_address ?? {};
 
-  const changeStatus = async (status: number) => {
-    setBusy(true);
+  const isWorker = admin?.role === WORKER_ROLE && !isSuperAdmin;
+  const mayUpdateStatus = can('order.update_status');
 
-    try {
-      const remark = status === 7 ? window.prompt('Reason for cancelling?') ?? undefined : undefined;
-      const { message } = await apiWithMessage(`/admin/orders/${order.id}/status`, {
-        method: 'POST',
-        auth: 'admin',
-        body: { status, remark },
-      });
-      toastSuccess(message);
-      await load();
-    } catch (error) {
-      toastError(error instanceof ApiError ? error.message : 'Could not update the status');
-    } finally {
-      setBusy(false);
-    }
+  const settableStatuses = ORDER_STATUS.filter((status) => {
+    if (status.value === order.status) return false;
+    if (isWorker && !WORKER_STATUSES.includes(status.value)) return false;
+
+    const permission = statusPermission(status.value);
+    return permission ? can(permission) : true;
+  });
+
+  const suggested = NEXT_STEP[order.status];
+  const primary =
+    mayUpdateStatus && suggested && settableStatuses.some((s) => s.value === suggested.status)
+      ? suggested
+      : null;
+
+  const secondary = settableStatuses.filter((status) => status.value !== primary?.status);
+
+  const askStatus = (status: number, label: string) => {
+    setActionError(null);
+    setRemark('');
+    setPending({ kind: 'status', status, label });
   };
 
   const downloadInvoice = async () => {
@@ -278,218 +438,368 @@ export function OrderDetailScreen({ id }: { id: number }) {
         </Link>
       </AdminPageHeader>
 
-      <div className="row gy-4">
-        <div className="col-lg-8">
-          <Card title="Items">
+      {/* Where the order stands, before anything else on the page. */}
+      <div className="vp-order-state">
+        <OrderStatusBadge status={order.status} label={order.status_label} />
+        <span className={`badge badge--${order.payment_status === 1 ? 'success' : 'warning'}`}>
+          {order.payment_status_label}
+        </span>
+        {order.cod && <span className="badge badge--dark">Cash on delivery</span>}
+        <span className="vp-order-state__meta">
+          {order.branch?.name ? `${order.branch.name} · ` : ''}
+          {formatDate(order.created_at, true)}
+        </span>
+      </div>
+
+      {/*
+        One grid, ordered for a worker holding a phone: who the order is for,
+        what is in it, what has been paid, who last touched it, then what to do
+        about it. Desktop rearranges the same markup into two columns through
+        `grid-template-areas` — no card is rendered twice.
+      */}
+      <div className="vp-order-layout">
+        <Card title="Customer" className="vp-order-area--customer">
+          <p className="mb-1">
+            <strong>{order.customer?.name ?? order.guest?.name ?? 'Guest'}</strong>
+            {!order.customer && <span className="badge badge--dark ms-2">Guest</span>}
+          </p>
+          <p className="mb-1">{order.customer?.email ?? order.guest?.email ?? '—'}</p>
+          <p className="mb-3">{order.customer?.mobile ?? order.guest?.mobile ?? '—'}</p>
+
+          <h6 className="vp-order-subhead">Delivery address</h6>
+          <p className="mb-0">
+            {address.address}
+            <br />
+            {[address.city, address.state].filter(Boolean).join(', ')}
+            <br />
+            {address.country_name ?? 'Tanzania'}
+          </p>
+
+          {order.note && (
+            <>
+              <h6 className="vp-order-subhead mt-3">Order note</h6>
+              <p className="mb-0">{order.note}</p>
+            </>
+          )}
+        </Card>
+
+        <Card title={`Items (${(order.items ?? []).length})`} className="vp-order-area--items">
+          <div className="table-responsive">
+            <table className="table table--light style--two vp-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th className="text-end">Qty</th>
+                  <th className="text-end">Price</th>
+                  <th className="text-end">Tax</th>
+                  <th className="text-end">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(order.items ?? []).map((item) => (
+                  <tr key={item.id}>
+                    <td data-label="Product">
+                      <div className="d-flex align-items-center gap-3">
+                        <img src={imageUrl(item.image)} alt={item.product_name ?? ''} width={40} height={40} style={{ borderRadius: 6, objectFit: 'cover', flex: '0 0 40px' }} />
+                        <div>
+                          <strong>{item.product_name}</strong>
+                          <span className="d-block" style={{ fontSize: 13 }}>
+                            {item.sku ?? ''}
+                            {item.variation_label ? ` · ${item.variation_label}` : ''}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td data-label="Qty" className="text-end">{item.quantity}</td>
+                    <td data-label="Price" className="text-end">{showAmount(item.price)}</td>
+                    <td data-label="Tax" className="text-end">{showAmount(item.total_tax)}</td>
+                    <td data-label="Subtotal" className="text-end">{showAmount(item.subtotal)}</td>
+                  </tr>
+                ))}
+                {(order.items ?? []).length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="table-empty">
+                      This order has no line items
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <Card title="Payment" className="vp-order-area--payment">
+          <ul className="list-group list-group-flush">
+            <li className="list-group-item d-flex justify-content-between px-0">
+              <span>Subtotal</span> <strong>{showAmount(order.subtotal)}</strong>
+            </li>
+            <li className="list-group-item d-flex justify-content-between px-0">
+              <span>Tax</span> <strong>{showAmount(order.total_tax)}</strong>
+            </li>
+            <li className="list-group-item d-flex justify-content-between px-0">
+              <span>Delivery</span> <strong>{showAmount(order.shipping_charge)}</strong>
+            </li>
+            <li className="list-group-item d-flex justify-content-between px-0">
+              <span>Discount</span> <strong>- {showAmount(order.discount)}</strong>
+            </li>
+            <li className="list-group-item d-flex justify-content-between px-0 vp-order-total">
+              <span>Total</span> <strong>{showAmount(order.total)}</strong>
+            </li>
+          </ul>
+
+          <p className="vp-order-payment-state">
+            <span>Payment status</span>
+            <span className={`badge badge--${order.payment_status === 1 ? 'success' : 'warning'}`}>
+              {order.payment_status_label}
+            </span>
+          </p>
+
+          {/* Payment is its own decision — never bundled into a status change. */}
+          {mayUpdateStatus && order.payment_status !== 1 && (
+            <button
+              className="btn btn--success vp-order-action"
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setActionError(null);
+                setRemark('');
+                setPending({ kind: 'paid' });
+              }}
+            >
+              <i className="las la-money-bill-wave" /> Mark as paid
+            </button>
+          )}
+        </Card>
+
+        <Card title="Processing" className="vp-order-area--processing">
+          <ul className="list-group list-group-flush">
+            <li className="list-group-item d-flex justify-content-between gap-3 px-0">
+              <span>Branch</span> <strong>{order.branch?.name ?? '—'}</strong>
+            </li>
+            <li className="list-group-item d-flex justify-content-between gap-3 px-0">
+              <span>Placed</span> <strong>{formatDate(order.created_at, true)}</strong>
+            </li>
+            <li className="list-group-item d-flex justify-content-between gap-3 px-0">
+              <span>Dispatched</span> <strong>{order.dispatched_at ? formatDate(order.dispatched_at, true) : '—'}</strong>
+            </li>
+            <li className="list-group-item d-flex justify-content-between gap-3 px-0">
+              <span>Delivered</span> <strong>{order.delivered_at ? formatDate(order.delivered_at, true) : '—'}</strong>
+            </li>
+            {/*
+              `processed_by` records the staff member who acted on the order
+              most recently — it is not an assignment and not an owner, so it
+              is labelled for exactly what it is.
+            */}
+            <li className="list-group-item d-flex justify-content-between gap-3 px-0">
+              <span>Last processed by</span>{' '}
+              <strong>{order.processed_by ?? 'Not processed yet'}</strong>
+            </li>
+          </ul>
+
+          {isSuperAdmin && branches.length > 0 && (
+            <div className="mt-3">
+              <label className="form-label" htmlFor="vp-order-branch">
+                Fulfilling branch
+              </label>
+              <select
+                id="vp-order-branch"
+                className="form-select"
+                value={order.branch?.id ?? ''}
+                disabled={busy}
+                onChange={async (event) => {
+                  try {
+                    const { message } = await apiWithMessage(`/admin/orders/${order.id}/branch`, {
+                      method: 'POST',
+                      auth: 'admin',
+                      body: { branch_id: Number(event.target.value) },
+                    });
+                    await load();
+                    toastSuccess(message);
+                  } catch (error) {
+                    toastError(error instanceof ApiError ? error.message : 'Could not reassign the order');
+                  }
+                }}
+              >
+                {branches.map((branch) => (
+                  <option value={branch.id} key={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </Card>
+
+        <Card title="Actions" className="vp-order-area--actions">
+          {!mayUpdateStatus ? (
+            <p className="mb-0 text-muted">You do not have permission to change this order.</p>
+          ) : settableStatuses.length === 0 ? (
+            <p className="mb-0 text-muted">
+              This order is {order.status_label.toLowerCase()}. There is nothing left for you to change.
+            </p>
+          ) : (
+            <>
+              {primary && (
+                <button
+                  className="btn btn--primary vp-order-action vp-order-action--primary"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => askStatus(primary.status, primary.label)}
+                >
+                  {primary.label}
+                </button>
+              )}
+
+              {secondary.length > 0 && (
+                <div className="vp-order-secondary">
+                  <span className="vp-order-secondary__label">
+                    {primary ? 'Or change the status to' : 'Change status to'}
+                  </span>
+                  <div className="vp-order-secondary__buttons">
+                    {secondary.map((status) => (
+                      <button
+                        key={status.value}
+                        className={`btn vp-order-action ${status.value === 7 ? 'btn-outline--danger' : 'btn-outline--primary'}`}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => askStatus(status.value, status.label)}
+                      >
+                        {status.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {isWorker && (
+                <p className="vp-order-hint">
+                  Cancellations and returns are handled by a manager.
+                </p>
+              )}
+            </>
+          )}
+        </Card>
+
+        {(order.deposits ?? []).length > 0 && (
+          <Card title="Payments received" className="vp-order-area--deposits">
             <div className="table-responsive">
               <table className="table table--light style--two vp-table">
                 <thead>
                   <tr>
-                    <th>Product</th>
-                    <th className="text-end">Qty</th>
-                    <th className="text-end">Price</th>
-                    <th className="text-end">Tax</th>
-                    <th className="text-end">Subtotal</th>
+                    <th>Reference</th>
+                    <th>Method</th>
+                    <th>Date</th>
+                    <th className="text-end">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(order.items ?? []).map((item) => (
-                    <tr key={item.id}>
-                      <td data-label="Product">
-                        <div className="d-flex align-items-center gap-3">
-                          <img src={imageUrl(item.image)} alt={item.product_name ?? ''} width={40} height={40} style={{ borderRadius: 6, objectFit: 'cover' }} />
-                          <div>
-                            <strong>{item.product_name}</strong>
-                            <span className="d-block" style={{ fontSize: 13 }}>
-                              {item.sku ?? ''}
-                              {item.variation_label ? ` · ${item.variation_label}` : ''}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-                      <td data-label="Qty" className="text-end">{item.quantity}</td>
-                      <td data-label="Price" className="text-end">{showAmount(item.price)}</td>
-                      <td data-label="Tax" className="text-end">{showAmount(item.total_tax)}</td>
-                      <td data-label="Subtotal" className="text-end">{showAmount(item.subtotal)}</td>
+                  {(order.deposits ?? []).map((deposit) => (
+                    <tr key={deposit.id}>
+                      <td data-label="Reference">{deposit.trx}</td>
+                      <td data-label="Method">{deposit.method ?? '—'}</td>
+                      <td data-label="Date">{formatDate(deposit.created_at)}</td>
+                      <td data-label="Amount" className="text-end">{showAmount(deposit.final_amount)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </Card>
+        )}
 
-          {(order.status_logs ?? []).length > 0 && (
-            <Card title="Status history" className="mt-4">
-              <ul className="list-group list-group-flush">
-                {(order.status_logs ?? []).map((log) => (
-                  <li className="list-group-item px-0 d-flex justify-content-between gap-3" key={log.id}>
-                    <span>
-                      <strong>{log.to_status_label}</strong>
-                      {log.remark ? ` — ${log.remark}` : ''}
-                      <span className="d-block" style={{ fontSize: 13 }}>
-                        by {log.actor_name ?? 'System'}
-                      </span>
-                    </span>
-                    <span style={{ fontSize: 13 }}>{formatDate(log.created_at, true)}</span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
-
-          {(order.deposits ?? []).length > 0 && (
-            <Card title="Payments" className="mt-4">
-              <div className="table-responsive">
-                <table className="table table--light style--two vp-table">
-                  <thead>
-                    <tr>
-                      <th>Reference</th>
-                      <th>Method</th>
-                      <th>Date</th>
-                      <th className="text-end">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(order.deposits ?? []).map((deposit) => (
-                      <tr key={deposit.id}>
-                        <td data-label="Reference">{deposit.trx}</td>
-                        <td data-label="Method">{deposit.method ?? '—'}</td>
-                        <td data-label="Date">{formatDate(deposit.created_at)}</td>
-                        <td data-label="Amount" className="text-end">{showAmount(deposit.final_amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          )}
-        </div>
-
-        <div className="col-lg-4">
-          <Card title="Summary">
+        {(order.status_logs ?? []).length > 0 && (
+          <Card title="History" className="vp-order-area--history">
             <ul className="list-group list-group-flush">
-              <li className="list-group-item d-flex justify-content-between px-0">
-                <span>Subtotal</span> <strong>{showAmount(order.subtotal)}</strong>
-              </li>
-              <li className="list-group-item d-flex justify-content-between px-0">
-                <span>Tax</span> <strong>{showAmount(order.total_tax)}</strong>
-              </li>
-              <li className="list-group-item d-flex justify-content-between px-0">
-                <span>Delivery</span> <strong>{showAmount(order.shipping_charge)}</strong>
-              </li>
-              <li className="list-group-item d-flex justify-content-between px-0">
-                <span>Discount</span> <strong>- {showAmount(order.discount)}</strong>
-              </li>
-              <li className="list-group-item d-flex justify-content-between px-0">
-                <span>Total</span> <strong>{showAmount(order.total)}</strong>
-              </li>
+              {(order.status_logs ?? []).map((log) => (
+                <li className="list-group-item px-0 vp-order-history-item" key={log.id}>
+                  <span>
+                    <strong>{log.to_status_label}</strong>
+                    {log.remark ? ` — ${log.remark}` : ''}
+                    <span className="d-block" style={{ fontSize: 13 }}>
+                      by {log.actor_name ?? 'System'}
+                    </span>
+                  </span>
+                  <time className="vp-order-history-item__at">{formatDate(log.created_at, true)}</time>
+                </li>
+              ))}
             </ul>
           </Card>
+        )}
+      </div>
 
-          <Card title="Fulfilment" className="mt-4">
+      <Modal
+        open={pending !== null}
+        title={pending?.kind === 'paid' ? 'Mark this order as paid' : 'Confirm status change'}
+        onClose={closeDialog}
+      >
+        {pending && (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void runPendingAction();
+            }}
+          >
             <p className="mb-2">
-              Status: <OrderStatusBadge status={order.status} label={order.status_label} />
-            </p>
-            <p className="mb-3">
-              Payment: <span className="badge badge--info">{order.payment_status_label}</span>
-              {order.cod && <span className="badge badge--warning ms-1">COD</span>}
+              Order <strong>{order.order_number}</strong>
+              {order.customer?.name || order.guest?.name ? (
+                <> for {order.customer?.name ?? order.guest?.name}</>
+              ) : null}
             </p>
 
-            {can('order.update_status') && (
+            {pending.kind === 'paid' ? (
+              <p className="mb-3">
+                This records <strong>{showAmount(order.total)}</strong> as received. It changes the
+                payment status only — the order stays {order.status_label.toLowerCase()}.
+              </p>
+            ) : (
               <>
-                <label className="form-label">Change status</label>
-                <div className="d-flex flex-wrap gap-2">
-                  {ORDER_STATUS.filter((status) => status.value !== order.status).map((status) => (
-                    <button
-                      key={status.value}
-                      className="btn btn--sm btn-outline--primary"
-                      type="button"
-                      disabled={busy}
-                      onClick={() => changeStatus(status.value)}
-                    >
-                      {status.label}
-                    </button>
-                  ))}
-                </div>
+                {/* The status's own name, not the button's wording — the
+                    button says "Process order", the order becomes Processing. */}
+                <p className="mb-3 vp-order-transition">
+                  <OrderStatusBadge status={order.status} label={order.status_label} />
+                  <i className="las la-long-arrow-alt-right" aria-hidden="true" />
+                  <OrderStatusBadge status={pending.status} label={statusLabel(pending.status)} />
+                </p>
 
-                {order.payment_status !== 1 && (
-                  <button
-                    className="btn btn--sm btn--success w-100 mt-3"
-                    type="button"
+                <Field
+                  label="Remark"
+                  className="col-12"
+                  hint={
+                    pending.status === 7
+                      ? 'Optional. Saved as the cancellation reason and shown in the order history.'
+                      : 'Optional. Saved with this change in the order history.'
+                  }
+                >
+                  <textarea
+                    className="form-control"
+                    rows={3}
+                    maxLength={255}
+                    value={remark}
                     disabled={busy}
-                    onClick={async () => {
-                      try {
-                        const { message } = await apiWithMessage(`/admin/orders/${order.id}/mark-paid`, {
-                          method: 'POST',
-                          auth: 'admin',
-                        });
-                        toastSuccess(message);
-                        await load();
-                      } catch (error) {
-                        toastError(error instanceof ApiError ? error.message : 'Could not mark as paid');
-                      }
-                    }}
-                  >
-                    Mark as paid
-                  </button>
-                )}
+                    onChange={(event) => setRemark(event.target.value)}
+                    placeholder="Anything the next person should know"
+                  />
+                </Field>
               </>
             )}
 
-            {isSuperAdmin && branches.length > 0 && (
-              <div className="mt-3">
-                <label className="form-label">Fulfilling branch</label>
-                <select
-                  className="form-select"
-                  value={order.branch?.id ?? ''}
-                  onChange={async (event) => {
-                    try {
-                      const { message } = await apiWithMessage(`/admin/orders/${order.id}/branch`, {
-                        method: 'POST',
-                        auth: 'admin',
-                        body: { branch_id: Number(event.target.value) },
-                      });
-                      toastSuccess(message);
-                      await load();
-                    } catch (error) {
-                      toastError(error instanceof ApiError ? error.message : 'Could not reassign the order');
-                    }
-                  }}
-                >
-                  {branches.map((branch) => (
-                    <option value={branch.id} key={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
+            {actionError && (
+              <div className="vp-order-error" role="alert">
+                {actionError}
               </div>
             )}
-          </Card>
 
-          <Card title="Customer" className="mt-4">
-            <p className="mb-1">
-              <strong>{order.customer?.name ?? order.guest?.name ?? 'Guest'}</strong>
-            </p>
-            <p className="mb-1">{order.customer?.email ?? order.guest?.email}</p>
-            <p className="mb-3">{order.customer?.mobile ?? order.guest?.mobile}</p>
-
-            <h6>Delivery address</h6>
-            <p className="mb-0">
-              {address.address}
-              <br />
-              {[address.city, address.state].filter(Boolean).join(', ')}
-              <br />
-              {address.country_name ?? 'Tanzania'}
-            </p>
-            {order.note && (
-              <>
-                <h6 className="mt-3">Order note</h6>
-                <p className="mb-0">{order.note}</p>
-              </>
-            )}
-          </Card>
-        </div>
-      </div>
+            <div className="vp-order-dialog-actions">
+              <button className="btn btn--primary" type="submit" disabled={busy}>
+                {busy ? 'Working…' : pending.kind === 'paid' ? 'Mark as paid' : `Confirm — ${pending.label}`}
+              </button>
+              <button className="btn btn-outline--primary" type="button" onClick={closeDialog} disabled={busy}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </>
   );
 }
