@@ -44,6 +44,7 @@ const MENU: (MenuItem | { header: string })[] = [
       { label: 'Roles & Permissions', href: '/admin/staff/roles', permission: 'staff.view' },
     ],
   },
+  { label: 'Staff Guide', href: '/admin/guide', icon: 'las la-question-circle', permission: 'dashboard.view' },
 
   { header: 'Catalogue' },
   {
@@ -65,12 +66,14 @@ const MENU: (MenuItem | { header: string })[] = [
     permission: 'inventory.view',
     children: [
       { label: 'Branch Stock', href: '/admin/inventory', permission: 'inventory.view' },
+      { label: 'Receive Stock', href: '/admin/inventory/receive', permission: 'inventory.receive' },
       { label: 'Stock Transfers', href: '/admin/inventory/transfers', permission: 'inventory.view' },
       { label: 'Movement History', href: '/admin/inventory/history', permission: 'inventory.history' },
     ],
   },
 
   { header: 'Sales' },
+  { label: 'Point of Sale', href: '/admin/pos', icon: 'las la-cash-register', permission: 'pos.sell' },
   { label: 'Orders', href: '/admin/orders', icon: 'las la-shopping-cart', permission: 'order.view' },
   { label: 'Payments', href: '/admin/deposits', icon: 'las la-money-check', permission: 'deposit.view' },
   { label: 'Customers', href: '/admin/customers', icon: 'las la-users', permission: 'customer.view' },
@@ -134,7 +137,7 @@ type NotificationRow = { id: number; title: string; click_url: string | null; is
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { admin, loading, isAuthenticated, can, isSuperAdmin, logout } = useAdmin();
+  const { admin, loading, isAuthenticated, can, isSuperAdmin, isCompanyWide, logout } = useAdmin();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -224,6 +227,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <ul className="sidebar__menu">
               {MENU.map((entry, index) => {
                 if ('header' in entry) {
+                  // Hide a section heading when nothing under it is visible.
+                  const next = MENU.findIndex((e, i) => i > index && 'header' in e);
+                  const section = MENU.slice(index + 1, next === -1 ? undefined : next) as MenuItem[];
+                  const hasItems = section.some((item) =>
+                    item.children
+                      ? !(item.superAdminOnly && !isSuperAdmin) && item.children.some(visible)
+                      : visible(item),
+                  );
+                  if (!hasItems) return null;
+
                   return (
                     <li className="sidebar__menu-header" key={`header-${index}`}>
                       {entry.header}
@@ -231,9 +244,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   );
                 }
 
-                if (!visible(entry)) return null;
+                // A group shows when any of its items is allowed, not only
+                // its first one; a single link needs its own permission.
+                if (!entry.children && !visible(entry)) return null;
 
                 if (entry.children) {
+                  if (entry.superAdminOnly && !isSuperAdmin) return null;
                   const children = entry.children.filter(visible);
                   if (children.length === 0) return null;
 
@@ -296,7 +312,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </button>
           <span className="branch-scope">
             <i className="las la-map-marker-alt" />
-            {isSuperAdmin ? 'All branches' : admin?.branch?.name ?? 'No branch'}
+            {isCompanyWide ? 'All branches' : admin?.branch?.name ?? 'No branch'}
           </span>
         </div>
 

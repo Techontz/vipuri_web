@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { AdminPageHeader, AdminWidget } from '@/components/admin/AdminShell';
 import { OrderStatusBadge } from '@/components/admin/ui';
 import { useAdmin } from '@/components/admin/AdminProviders';
+import { describeAccess } from '@/components/admin/screens/Guide';
 import { api } from '@/lib/api';
 import { formatDate, showAmount, showCompactAmount } from '@/lib/format';
 import type { Order } from '@/types';
@@ -56,8 +57,87 @@ function MiniChart({ data }: { data: { date: string; revenue: number }[] }) {
   );
 }
 
+/** Built-in role descriptions, for when the role list is not loaded. */
+const ROLE_LINES: Record<string, string> = {
+  'Super Admin': 'Owns the system: every permission, every branch.',
+  Admin: 'Runs the business across all branches, except system configuration.',
+  'Branch Manager': 'Runs one branch: orders, stock, counter sales, reports and staff below manager level.',
+  'HR Officer': 'Looks after people in one branch: adds and updates staff ranked below HR.',
+  'Sales Assistant': 'Serves customers in one branch: counter sales, orders and stock checks.',
+  'Branch Worker': 'Fulfils orders in one branch and keeps stock counts right.',
+};
+
+/**
+ * "My access": who is signed in, what their role is for, where they work and
+ * what it lets them do — so nobody has to guess why a menu item is missing.
+ */
+function MyAccessCard() {
+  const { admin, isSuperAdmin, isCompanyWide, roleLevel } = useAdmin();
+
+  if (!admin) return null;
+
+  const access = describeAccess(admin.permissions ?? [], isSuperAdmin);
+  const roleLine = admin.role ? ROLE_LINES[admin.role] ?? 'A custom role set up by your company.' : 'No role assigned yet.';
+
+  return (
+    <div className="card box-shadow3 vp-my-access">
+      <div className="card-body">
+        <div className="vp-my-access__who">
+          <span className="vp-my-access__avatar" aria-hidden="true">
+            {admin.name
+              .split(' ')
+              .map((part) => part[0])
+              .slice(0, 2)
+              .join('')
+              .toUpperCase()}
+          </span>
+          <div>
+            <span className="vp-my-access__eyebrow">My access</span>
+            <h5 className="mb-1">{admin.name}</h5>
+            <div className="d-flex flex-wrap gap-2 align-items-center">
+              <span className="badge badge--primary">{admin.role ?? 'No role'}</span>
+              {roleLevel > 0 && <span className="vp-rank-chip">Rank {roleLevel}</span>}
+              <span className={`vp-scope-badge${isCompanyWide ? ' vp-scope-badge--all' : ''}`}>
+                <i className={isCompanyWide ? 'las la-globe-africa' : 'las la-store'} aria-hidden="true" />{' '}
+                {isCompanyWide ? 'All branches' : admin.branch?.name ?? 'No branch'}
+              </span>
+            </div>
+            <p className="vp-my-access__role mb-0">{roleLine}</p>
+          </div>
+        </div>
+
+        <div className="vp-my-access__can">
+          <span className="vp-my-access__label">What you can do</span>
+          {access.length ? (
+            <ul className="vp-access-list">
+              {access.map((item) => (
+                <li key={item.key}>
+                  {item.href ? (
+                    <Link href={item.href}>
+                      <i className={item.icon} aria-hidden="true" /> {item.label}
+                    </Link>
+                  ) : (
+                    <span>
+                      <i className={item.icon} aria-hidden="true" /> {item.label}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted mb-2">View the dashboard. Ask your manager if you need more.</p>
+          )}
+          <Link className="vp-my-access__guide" href="/admin/guide">
+            <i className="las la-book-open" aria-hidden="true" /> Read the Staff Guide
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AdminDashboard() {
-  const { isSuperAdmin } = useAdmin();
+  const { isCompanyWide } = useAdmin();
   const [data, setData] = useState<DashboardPayload | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -187,6 +267,12 @@ export function AdminDashboard() {
 
       </div>
 
+      <div className="row gy-4 mt-1 mb-4">
+        <div className="col-12">
+          <MyAccessCard />
+        </div>
+      </div>
+
       <div className="row gy-4">
         <div className="col-xxl-3 col-sm-6">
           <AdminWidget title="Total orders" value={w.orders_total ?? 0} icon="las la-shopping-cart" bg="primary" href="/admin/orders" />
@@ -211,7 +297,7 @@ export function AdminDashboard() {
         </div>
       </div>
 
-      {isSuperAdmin && (
+      {isCompanyWide && (
         <div className="row gy-4 mt-1">
           <div className="col-xxl-3 col-sm-6">
             <AdminWidget title="Branches" value={w.branches_total ?? 0} icon="las la-store" bg="primary" href="/admin/branches" />

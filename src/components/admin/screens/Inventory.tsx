@@ -42,7 +42,7 @@ type Summary = {
 
 /** Branch stock levels with in-place adjustment. */
 export function InventoryScreen({ initialBranchId }: { initialBranchId?: string }) {
-  const { can, isSuperAdmin, branchId } = useAdmin();
+  const { can, isCompanyWide, branchId } = useAdmin();
 
   const [rows, setRows] = useState<InventoryRow[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -50,7 +50,7 @@ export function InventoryScreen({ initialBranchId }: { initialBranchId?: string 
   const [branches, setBranches] = useState<{ id: number; name: string; code: string }[]>([]);
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
-    branch_id: initialBranchId ?? (isSuperAdmin ? '' : String(branchId ?? '')),
+    branch_id: initialBranchId ?? (isCompanyWide ? '' : String(branchId ?? '')),
     search: '',
     low_stock: false,
     out_of_stock: false,
@@ -99,6 +99,11 @@ export function InventoryScreen({ initialBranchId }: { initialBranchId?: string 
   return (
     <>
       <AdminPageHeader title="Branch inventory">
+        {can('inventory.receive') && (
+          <Link href="/admin/inventory/receive" className="btn btn--sm btn--primary">
+            <i className="las la-dolly" /> Receive stock
+          </Link>
+        )}
         <Link href="/admin/inventory/transfers" className="btn btn--sm btn-outline--primary">
           Stock transfers
         </Link>
@@ -145,7 +150,7 @@ export function InventoryScreen({ initialBranchId }: { initialBranchId?: string 
             <select
               className="form-select"
               value={filters.branch_id}
-              disabled={!isSuperAdmin}
+              disabled={!isCompanyWide}
               onChange={(event) => {
                 setFilters((current) => ({ ...current, branch_id: event.target.value }));
                 setPage(1);
@@ -362,7 +367,7 @@ type Transfer = {
 };
 
 export function StockTransfersScreen() {
-  const { can, isSuperAdmin, branchId } = useAdmin();
+  const { can, isCompanyWide, branchId } = useAdmin();
 
   const [rows, setRows] = useState<Transfer[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
@@ -444,7 +449,7 @@ export function StockTransfersScreen() {
             className="btn btn--primary btn--sm"
             type="button"
             onClick={() => {
-              setForm({ from_branch_id: isSuperAdmin ? '' : String(branchId ?? ''), to_branch_id: '', note: '', items: [] });
+              setForm({ from_branch_id: isCompanyWide ? '' : String(branchId ?? ''), to_branch_id: '', note: '', items: [] });
               setProductResults([]);
               setModalOpen(true);
             }}
@@ -573,7 +578,7 @@ export function StockTransfersScreen() {
         >
           <div className="row">
             <Field label="From branch" required>
-              <select className="form-select" required value={form.from_branch_id} disabled={!isSuperAdmin} onChange={(event) => setForm((c) => ({ ...c, from_branch_id: event.target.value }))}>
+              <select className="form-select" required value={form.from_branch_id} disabled={!isCompanyWide} onChange={(event) => setForm((c) => ({ ...c, from_branch_id: event.target.value }))}>
                 <option value="">Choose</option>
                 {branches.map((branch) => (
                   <option value={branch.id} key={branch.id}>
@@ -676,6 +681,24 @@ export function StockTransfersScreen() {
 
 /* ============================== Stock history ============================= */
 
+/** Readable names for the ledger's movement types (stock_logs.remark). */
+const MOVEMENT_LABELS: Record<string, string> = {
+  stock_receipt: 'Stock received',
+  manual_adjustment: 'Adjustment',
+  stock_take: 'Stock count',
+  order_fulfilled: 'Order dispatched',
+  order_restocked: 'Order restocked',
+  order_cancelled: 'Order cancelled',
+  order_returned: 'Order returned',
+  sale: 'Counter sale',
+  transfer_out: 'Transfer out',
+  transfer_in: 'Transfer in',
+  transfer_shortfall: 'Transfer shortfall',
+};
+
+const movementLabel = (remark: string | null) =>
+  remark ? MOVEMENT_LABELS[remark] ?? remark.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) : '—';
+
 type StockLogRow = {
   id: number;
   branch: string | null;
@@ -748,7 +771,20 @@ export function StockHistoryScreen() {
               ),
             },
             { key: 'post', label: 'After', align: 'end', render: (row) => row.post_quantity },
-            { key: 'reason', label: 'Reason', render: (row) => row.description ?? row.remark ?? '—' },
+            {
+              key: 'reason',
+              label: 'Reason',
+              render: (row) => (
+                <>
+                  <span className={`badge badge--${row.remark === 'stock_receipt' ? 'success' : 'dark'}`}>{movementLabel(row.remark)}</span>
+                  {row.description && (
+                    <span className="d-block" style={{ fontSize: 13 }}>
+                      {row.description}
+                    </span>
+                  )}
+                </>
+              ),
+            },
             { key: 'order', label: 'Order', render: (row) => row.order_number ?? '—' },
             { key: 'actor', label: 'By', render: (row) => row.actor_name ?? 'System' },
           ]}

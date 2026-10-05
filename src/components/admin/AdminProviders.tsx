@@ -5,13 +5,28 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { ADMIN_TOKEN_KEY, api, readToken, writeToken } from '@/lib/api';
 import type { StaffMember } from '@/types';
 
+/**
+ * A staff account as `/admin/auth/me` and `/admin/staff` return it: the
+ * shared {@link StaffMember} plus the rank fields the roles system added.
+ */
+export type AdminMember = StaffMember & {
+  /** Super admins and anyone holding `branch.all` work across every branch. */
+  is_company_wide?: boolean;
+  /** Rank of the role (1–100). Staff can only manage people ranked below them. */
+  role_level?: number;
+};
+
 type AdminState = {
-  admin: StaffMember | null;
+  admin: AdminMember | null;
   loading: boolean;
   isAuthenticated: boolean;
   /** True when the signed-in staff member holds the permission. */
   can: (permission: string) => boolean;
   isSuperAdmin: boolean;
+  /** Works across every branch (super admin, admin, or any role with `branch.all`). */
+  isCompanyWide: boolean;
+  /** Rank of the signed-in staff member's role; 0 when unknown. */
+  roleLevel: number;
   branchId: number | null;
   setSession: (token: string, admin: StaffMember) => void;
   refresh: () => Promise<void>;
@@ -24,6 +39,8 @@ const AdminContext = createContext<AdminState>({
   isAuthenticated: false,
   can: () => false,
   isSuperAdmin: false,
+  isCompanyWide: false,
+  roleLevel: 0,
   branchId: null,
   setSession: () => {},
   refresh: async () => {},
@@ -35,7 +52,7 @@ export function useAdmin() {
 }
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
-  const [admin, setAdmin] = useState<StaffMember | null>(null);
+  const [admin, setAdmin] = useState<AdminMember | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -46,7 +63,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const data = await api<{ admin: StaffMember }>('/admin/auth/me', { auth: 'admin' });
+      const data = await api<{ admin: AdminMember }>('/admin/auth/me', { auth: 'admin' });
       setAdmin(data.admin);
     } catch {
       writeToken(ADMIN_TOKEN_KEY, null);
@@ -88,6 +105,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       // API enforces the same rules independently on every request.
       can: (permission: string) => Boolean(admin?.is_super_admin) || permissions.has(permission),
       isSuperAdmin: Boolean(admin?.is_super_admin),
+      isCompanyWide: Boolean(admin?.is_super_admin || admin?.is_company_wide),
+      roleLevel: admin?.role_level ?? (admin?.is_super_admin ? 100 : 0),
       branchId: admin?.branch_id ?? null,
       setSession,
       refresh,

@@ -30,7 +30,7 @@ const EMPTY_BRANCH = {
 
 /** Branch list + create/edit, the heart of the VIPURI multi-branch model. */
 export function BranchesScreen() {
-  const { can, isSuperAdmin } = useAdmin();
+  const { can, isCompanyWide } = useAdmin();
 
   const [branches, setBranches] = useState<Branch[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
@@ -284,7 +284,7 @@ export function BranchesScreen() {
                   Click &amp; collect point
                 </label>
               </div>
-              {isSuperAdmin && (
+              {isCompanyWide && (
                 <div className="form-check">
                   <input
                     className="form-check-input"

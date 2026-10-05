@@ -59,18 +59,51 @@ const NEXT_STEP: Record<number, { status: number; label: string }> = {
   3: { status: 4, label: 'Mark delivered' },
 };
 
+/* ------------------------------- Sales channel -----------------------------
+   Online orders and counter sales (POS) share one list. The fields below are
+   what the API adds for that; they are optional so older payloads still type. */
+
+type ChannelFields = {
+  channel?: 'online' | 'pos';
+  channel_label?: string;
+  sold_by?: string | null;
+  payment_method?: string | null;
+  payment_method_label?: string | null;
+  payment_reference?: string | null;
+  amount_received?: number | null;
+  change_due?: number;
+  customer_name?: string | null;
+};
+
+type ChannelOrder = Order & ChannelFields;
+
+function ChannelBadge({ order }: { order: ChannelOrder }) {
+  const pos = order.channel === 'pos';
+  return (
+    <span className={`vp-channel ${pos ? 'vp-channel--pos' : ''}`}>
+      <i className={pos ? 'las la-cash-register' : 'las la-globe'} aria-hidden />
+      {pos ? 'Counter sale' : 'Online'}
+    </span>
+  );
+}
+
+function customerName(order: ChannelOrder): string {
+  return order.customer?.name ?? order.guest?.name ?? order.customer_name ?? 'Guest';
+}
+
 /* ================================== Orders ================================ */
 
 export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus?: string; initialBranchId?: string }) {
-  const { isSuperAdmin } = useAdmin();
+  const { isCompanyWide } = useAdmin();
 
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<ChannelOrder[]>([]);
   const [widgets, setWidgets] = useState<Record<string, number>>({});
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
     status: initialStatus ?? '',
+    channel: '',
     branch_id: initialBranchId ?? '',
     search: '',
     from: '',
@@ -88,7 +121,7 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
 
   /* How many of the folded-away filters are actually doing something — the
      badge on the toggle, so a narrowed list is never silently narrowed. */
-  const activeFilters = [filters.status, filters.branch_id, filters.from, filters.to].filter(Boolean).length;
+  const activeFilters = [filters.status, filters.channel, filters.branch_id, filters.from, filters.to].filter(Boolean).length;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -99,7 +132,7 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
         if (value) query.set(key, value);
       });
 
-      const data = await api<{ orders: Order[]; pagination: PaginationMeta; widgets: Record<string, number> }>(
+      const data = await api<{ orders: ChannelOrder[]; pagination: PaginationMeta; widgets: Record<string, number> }>(
         `/admin/orders?${query.toString()}`,
         { auth: 'admin' },
       );
@@ -119,12 +152,12 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
   }, [load]);
 
   useEffect(() => {
-    if (!isSuperAdmin) return;
+    if (!isCompanyWide) return;
 
     api<{ branches: { id: number; name: string }[] }>('/admin/branches/options', { auth: 'admin' })
       .then((data) => setBranches(data.branches ?? []))
       .catch(() => undefined);
-  }, [isSuperAdmin]);
+  }, [isCompanyWide]);
 
   return (
     <>
@@ -184,7 +217,15 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
               <option value="paid">Paid</option>
             </select>
           </div>
-          {isSuperAdmin && (
+          <div className="form-group">
+            <label className="form-label">Channel</label>
+            <select className="form-select" value={filters.channel} onChange={(event) => applyFilter({ channel: event.target.value })}>
+              <option value="">All channels</option>
+              <option value="online">Online</option>
+              <option value="pos">Counter sales</option>
+            </select>
+          </div>
+          {isCompanyWide && (
             <div className="form-group">
               <label className="form-label">Branch</label>
               <select className="form-select" value={filters.branch_id} onChange={(event) => applyFilter({ branch_id: event.target.value })}>
@@ -232,6 +273,9 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
                   <span className="d-block text-muted" style={{ fontSize: 13 }}>
                     {formatDate(order.created_at)}
                   </span>
+                  <span className="d-block mt-1">
+                    <ChannelBadge order={order} />
+                  </span>
                 </>
               ),
             },
@@ -240,16 +284,18 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
               label: 'Customer',
               render: (order) => (
                 <>
-                  <span className="d-block">{order.customer?.name ?? order.guest?.name ?? 'Guest'}</span>
+                  <span className="d-block">{customerName(order)}</span>
                   <span className="d-block" style={{ fontSize: 13 }}>
-                    {order.customer?.email ?? order.guest?.email ?? ''}
+                    {order.channel === 'pos'
+                      ? `Sold by ${order.sold_by ?? '—'}`
+                      : order.customer?.email ?? order.guest?.email ?? ''}
                   </span>
                 </>
               ),
             },
             /* Branch staff only ever see their own branch, so the column is
                dead weight for them — and columns are what costs width. */
-            ...(isSuperAdmin
+            ...(isCompanyWide
               ? [{ key: 'branch', label: 'Branch', render: (order: Order) => order.branch?.name ?? '—' }]
               : []),
             { key: 'status', label: 'Status', nowrap: true, render: (order) => <OrderStatusBadge status={order.status} label={order.status_label} /> },
@@ -258,9 +304,16 @@ export function OrdersScreen({ initialStatus, initialBranchId }: { initialStatus
               label: 'Payment',
               nowrap: true,
               render: (order) => (
-                <span className={`badge badge--${order.payment_status === 1 ? 'success' : 'warning'}`}>
-                  {order.payment_status_label}
-                </span>
+                <>
+                  <span className={`badge badge--${order.payment_status === 1 ? 'success' : 'warning'}`}>
+                    {order.payment_status_label}
+                  </span>
+                  {order.channel === 'pos' && order.payment_method_label && (
+                    <span className="d-block text-muted" style={{ fontSize: 12 }}>
+                      {order.payment_method_label}
+                    </span>
+                  )}
+                </>
               ),
             },
             { key: 'total', label: 'Total', align: 'end', nowrap: true, render: (order) => <strong>{showAmount(order.total)}</strong> },
@@ -290,9 +343,9 @@ type PendingAction =
   | { kind: 'paid' };
 
 export function OrderDetailScreen({ id }: { id: number }) {
-  const { admin, can, isSuperAdmin } = useAdmin();
+  const { admin, can, isSuperAdmin, isCompanyWide } = useAdmin();
 
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<ChannelOrder | null>(null);
   const [branches, setBranches] = useState<{ id: number; name: string; code: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -306,7 +359,7 @@ export function OrderDetailScreen({ id }: { id: number }) {
 
   const load = useCallback(async () => {
     try {
-      const data = await api<{ order: Order; branches: { id: number; name: string; code: string }[] }>(
+      const data = await api<{ order: ChannelOrder; branches: { id: number; name: string; code: string }[] }>(
         `/admin/orders/${id}`,
         { auth: 'admin' },
       );
@@ -377,6 +430,7 @@ export function OrderDetailScreen({ id }: { id: number }) {
   if (!order) return <Card>Order not found.</Card>;
 
   const address = order.shipping_address ?? {};
+  const isPos = order.channel === 'pos';
 
   const isWorker = admin?.role === WORKER_ROLE && !isSuperAdmin;
   const mayUpdateStatus = can('order.update_status');
@@ -384,6 +438,9 @@ export function OrderDetailScreen({ id }: { id: number }) {
   const settableStatuses = ORDER_STATUS.filter((status) => {
     if (status.value === order.status) return false;
     if (isWorker && !WORKER_STATUSES.includes(status.value)) return false;
+    // The API closes delivered, returned and cancelled orders; the only move
+    // left is returning a delivered one (a counter sale included).
+    if ([4, 6, 7].includes(order.status) && !(order.status === 4 && status.value === 6)) return false;
 
     const permission = statusPermission(status.value);
     return permission ? can(permission) : true;
@@ -433,6 +490,11 @@ export function OrderDetailScreen({ id }: { id: number }) {
             <i className="las la-file-pdf" /> Invoice
           </button>
         )}
+        {isPos && can('pos.sell') && (
+          <Link href={`/admin/pos/receipt/${order.id}`} className="btn btn--sm btn-outline--primary">
+            <i className="las la-receipt" /> Receipt
+          </Link>
+        )}
         <Link href="/admin/orders" className="btn btn--sm btn-outline--primary">
           Back to orders
         </Link>
@@ -444,6 +506,7 @@ export function OrderDetailScreen({ id }: { id: number }) {
         <span className={`badge badge--${order.payment_status === 1 ? 'success' : 'warning'}`}>
           {order.payment_status_label}
         </span>
+        <ChannelBadge order={order} />
         {order.cod && <span className="badge badge--dark">Cash on delivery</span>}
         <span className="vp-order-state__meta">
           {order.branch?.name ? `${order.branch.name} · ` : ''}
@@ -460,20 +523,33 @@ export function OrderDetailScreen({ id }: { id: number }) {
       <div className="vp-order-layout">
         <Card title="Customer" className="vp-order-area--customer">
           <p className="mb-1">
-            <strong>{order.customer?.name ?? order.guest?.name ?? 'Guest'}</strong>
-            {!order.customer && <span className="badge badge--dark ms-2">Guest</span>}
+            <strong>{customerName(order)}</strong>
+            {!order.customer && <span className="badge badge--dark ms-2">{isPos ? 'Walk-in' : 'Guest'}</span>}
           </p>
-          <p className="mb-1">{order.customer?.email ?? order.guest?.email ?? '—'}</p>
-          <p className="mb-3">{order.customer?.mobile ?? order.guest?.mobile ?? '—'}</p>
+          <p className="mb-1">{order.customer?.email ?? order.guest?.email ?? (isPos ? '' : '—')}</p>
+          <p className="mb-3">{order.customer?.mobile ?? order.guest?.mobile ?? address.mobile ?? '—'}</p>
 
-          <h6 className="vp-order-subhead">Delivery address</h6>
-          <p className="mb-0">
-            {address.address}
-            <br />
-            {[address.city, address.state].filter(Boolean).join(', ')}
-            <br />
-            {address.country_name ?? 'Tanzania'}
-          </p>
+          {isPos ? (
+            <>
+              <h6 className="vp-order-subhead">Counter sale</h6>
+              <p className="mb-0">
+                Sold at {order.branch?.name ?? 'the branch'} by <strong>{order.sold_by ?? '—'}</strong>
+                <br />
+                Handed over at the counter — no delivery.
+              </p>
+            </>
+          ) : (
+            <>
+              <h6 className="vp-order-subhead">Delivery address</h6>
+              <p className="mb-0">
+                {address.address}
+                <br />
+                {[address.city, address.state].filter(Boolean).join(', ')}
+                <br />
+                {address.country_name ?? 'Tanzania'}
+              </p>
+            </>
+          )}
 
           {order.note && (
             <>
@@ -547,6 +623,24 @@ export function OrderDetailScreen({ id }: { id: number }) {
             </li>
           </ul>
 
+          {order.payment_method_label && (
+            <p className="vp-order-payment-state">
+              <span>Paid by</span>
+              <strong>
+                {order.payment_method_label}
+                {order.payment_reference ? ` · ${order.payment_reference}` : ''}
+              </strong>
+            </p>
+          )}
+          {isPos && order.payment_method === 'cash' && order.amount_received != null && (
+            <p className="vp-order-payment-state">
+              <span>Cash received / change</span>
+              <strong>
+                {showAmount(order.amount_received)} / {showAmount(order.change_due ?? 0)}
+              </strong>
+            </p>
+          )}
+
           <p className="vp-order-payment-state">
             <span>Payment status</span>
             <span className={`badge badge--${order.payment_status === 1 ? 'success' : 'warning'}`}>
@@ -590,13 +684,18 @@ export function OrderDetailScreen({ id }: { id: number }) {
               most recently — it is not an assignment and not an owner, so it
               is labelled for exactly what it is.
             */}
+            {isPos && (
+              <li className="list-group-item d-flex justify-content-between gap-3 px-0">
+                <span>Sold by</span> <strong>{order.sold_by ?? '—'}</strong>
+              </li>
+            )}
             <li className="list-group-item d-flex justify-content-between gap-3 px-0">
               <span>Last processed by</span>{' '}
               <strong>{order.processed_by ?? 'Not processed yet'}</strong>
             </li>
           </ul>
 
-          {isSuperAdmin && branches.length > 0 && (
+          {isCompanyWide && branches.length > 0 && !isPos && (
             <div className="mt-3">
               <label className="form-label" htmlFor="vp-order-branch">
                 Fulfilling branch
