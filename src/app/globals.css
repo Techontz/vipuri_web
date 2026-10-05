@@ -1,0 +1,8 @@
+/*
+ * Intentionally minimal.
+ *
+ * All storefront and admin styling comes from the purchased theme's compiled
+ * stylesheets in /public/assets, which are linked from the root layout so the
+ * design is reproduced exactly. Project-specific additions live in
+ * /public/assets/vipuri.css.
+ */

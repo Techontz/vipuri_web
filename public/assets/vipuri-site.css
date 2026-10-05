@@ -1,0 +1,884 @@
+/* VIPURI — site area styles (additive; loaded after vipuri.css).
+   Site-wide chrome (header icons, page banner, footer, cookie notice) and the
+   content / auth pages: blog, branches, contact, about, track order, login,
+   register and password recovery. */
+
+/* --- Header icon buttons ---------------------------------------------------
+   vipuri.css resets `button.header-option__btn` (border:0; background:none)
+   so the <button>s (categories, cart, menu) lost the theme's ring while the
+   wishlist/account <a>s kept it. Put the same ring back on all of them. */
+.header-option button.header-option__btn {
+  border: 1px solid hsl(var(--border-color));
+  background-color: transparent;
+  padding: 0;
+}
+
+.header-option button.header-option__btn:hover,
+.header-option button.header-option__btn:focus-visible {
+  color: hsl(var(--white));
+  border-color: hsl(var(--base));
+  background-color: hsl(var(--base));
+}
+
+/* --- Page banner -----------------------------------------------------------
+   A navy wash over the photo so the white title reads on any image, a title
+   that wraps instead of clipping, and a breadcrumb pill that never runs off
+   the screen (the last crumb ellipsises). */
+.page-banner {
+  position: relative;
+  isolation: isolate;
+  background-color: hsl(var(--dark));
+  background-size: cover;
+  background-position: center;
+}
+
+.page-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(180deg, hsl(var(--dark) / 0.55) 0%, hsl(var(--dark) / 0.78) 100%),
+    linear-gradient(90deg, hsl(var(--dark) / 0.35), transparent 60%);
+  pointer-events: none;
+}
+
+.page-banner .page-banner__title {
+  font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.5rem);
+  line-height: 1.2;
+  max-width: 900px;
+  margin-inline: auto;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+  text-shadow: 0 2px 12px hsl(var(--dark) / 0.55);
+}
+
+.page-banner .breadcrumb.custom--breadcrumb {
+  width: auto;
+  max-width: 100%;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  min-width: 0;
+}
+
+.page-banner nav[aria-label='Breadcrumb'] {
+  display: flex;
+  justify-content: center;
+  max-width: 100%;
+}
+
+.page-banner .custom--breadcrumb .breadcrumb-item {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.page-banner .custom--breadcrumb .breadcrumb-item--current {
+  flex-shrink: 1;
+  min-width: 0;
+  display: flex;
+  max-width: min(520px, 100%);
+}
+
+.page-banner .custom--breadcrumb .breadcrumb-item--current > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+/* The theme spaces every section 120px from its neighbours; straight after
+   the banner that left a large empty band. */
+.page-banner + .my-120,
+.page-banner + section.my-120 {
+  margin-top: 48px;
+}
+
+@media screen and (max-width: 575px) {
+  .page-banner + .my-120,
+  .page-banner + section.my-120 {
+    margin-top: 32px;
+  }
+
+  .page-banner .page-banner__title {
+    font-size: clamp(1.25rem, 1rem + 2.4vw, 1.625rem);
+    margin-bottom: 12px;
+  }
+}
+
+/* --- Footer ---------------------------------------------------------------- */
+.footer .footer-item--contact .footer-contact-menu__item {
+  align-items: center;
+  min-width: 0;
+}
+
+.footer .footer-item--contact .footer-contact-menu__link {
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.footer .footer-item--contact a.footer-contact-menu__link {
+  white-space: nowrap;
+}
+
+.footer .footer-item--contact .footer-contact-menu__link.address {
+  margin: 0;
+  white-space: normal;
+  overflow-wrap: break-word;
+  hyphens: none;
+}
+
+.footer .footer-item--contact .footer-contact-menu__icon {
+  flex-shrink: 0;
+}
+
+.footer .footer-menu__link {
+  word-break: normal;
+}
+
+/* "Follow us" block: heading and "Find a branch" on one line, tighter gaps. */
+.footer .footer-action {
+  gap: 12px;
+}
+
+.footer .footer-action__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.footer .footer-action__title {
+  margin: 0;
+}
+
+.footer .footer-action__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(var(--white) / 0.75);
+  white-space: nowrap;
+}
+
+.footer .footer-action__link:hover,
+.footer .footer-action__link:focus-visible {
+  color: hsl(var(--base));
+}
+
+.footer .footer-action__body {
+  gap: 16px;
+}
+
+.footer .social-list__link i {
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* Payment methods the shop accepts. */
+.footer-accepts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.footer-accepts__label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: hsl(var(--white) / 0.6);
+}
+
+.footer-accepts__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.footer-accepts__chip {
+  --chip: hsl(var(--base));
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px 5px 8px;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--white) / 0.12);
+  background: hsl(var(--white) / 0.06);
+  color: hsl(var(--white) / 0.9);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.footer-accepts__chip i {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--chip);
+  color: #fff;
+  font-size: 13px;
+}
+
+.footer-accepts__chip--mpesa {
+  --chip: #e60000;
+}
+.footer-accepts__chip--mixx {
+  --chip: #0a3d91;
+}
+.footer-accepts__chip--airtel {
+  --chip: #ed1c24;
+}
+.footer-accepts__chip--halopesa {
+  --chip: #f7941d;
+}
+.footer-accepts__chip--bank {
+  --chip: hsl(var(--white) / 0.22);
+}
+
+@media screen and (max-width: 767px) {
+  .footer .footer-bottom {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .footer-accepts {
+    justify-content: center;
+  }
+
+  .footer-accepts__list {
+    justify-content: center;
+  }
+}
+
+/* --- Cookie notice ----------------------------------------------------------- */
+.vp-cookie {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 1050;
+  width: min(400px, calc(100vw - 48px));
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px 14px;
+  padding: 18px;
+  border-radius: 16px;
+  background: hsl(var(--dark));
+  color: hsl(var(--white) / 0.82);
+  border: 1px solid hsl(var(--white) / 0.08);
+  box-shadow: 0 18px 48px rgba(8, 12, 20, 0.35);
+  opacity: 0;
+  transform: translateY(16px);
+  visibility: hidden;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease,
+    visibility 0s linear 0.3s;
+}
+
+.vp-cookie.is-visible {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease,
+    visibility 0s;
+}
+
+.vp-cookie__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: hsl(var(--base));
+  color: #fff;
+  font-size: 22px;
+}
+
+.vp-cookie__title {
+  margin: 0 0 4px;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #fff;
+}
+
+.vp-cookie__text {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: hsl(var(--white) / 0.78);
+}
+
+.vp-cookie__link {
+  color: hsl(var(--base));
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.vp-cookie__link:hover,
+.vp-cookie__link:focus-visible {
+  color: #fff;
+}
+
+.vp-cookie__btn {
+  grid-column: 1 / -1;
+  justify-self: end;
+  min-width: 120px;
+  padding: 9px 24px;
+  border: 0;
+  border-radius: 999px;
+  background: hsl(var(--base));
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  transition: background-color 0.2s ease;
+}
+
+.vp-cookie__btn:hover {
+  background: hsl(var(--base-d-100, var(--base)));
+}
+
+.vp-cookie__btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+@media screen and (max-width: 575px) {
+  .vp-cookie {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    width: auto;
+  }
+
+  .vp-cookie__btn {
+    justify-self: stretch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vp-cookie,
+  .vp-cookie.is-visible {
+    transform: none;
+    transition: none;
+  }
+}
+
+/* --- Contact page ------------------------------------------------------------ */
+.contact .contact-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.contact .contact-info {
+  height: auto;
+  border-radius: 16px;
+  border-color: hsl(var(--border-color));
+  box-shadow: 0 6px 20px hsl(var(--dark) / 0.05);
+}
+
+.contact .contact-info__icon {
+  margin-inline: auto;
+  margin-bottom: 14px;
+  background-color: hsl(var(--base));
+  color: #fff;
+}
+
+.contact .contact-info__icon i {
+  font-size: 28px;
+  line-height: 1;
+  color: #fff;
+}
+
+.contact .contact-info__link {
+  display: inline-block;
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+}
+
+.contact .checkout-card {
+  border-radius: 16px;
+}
+
+.contact-map-card {
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid hsl(var(--border-color));
+  box-shadow: 0 6px 20px hsl(var(--dark) / 0.05);
+  background: hsl(var(--white));
+  line-height: 0;
+}
+
+.contact-map-card iframe {
+  display: block;
+  width: 100%;
+  border: 0;
+}
+
+/* --- Branches ---------------------------------------------------------------- */
+.branch-card.branch-card--stack {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px hsl(var(--dark) / 0.05);
+}
+
+.branch-card--stack .branch-card__badge {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  margin: 0;
+}
+
+.branch-card--head .branch-card__title {
+  padding-right: 110px;
+}
+
+.branch-card--stack .branch-card__title {
+  margin-bottom: 14px;
+}
+
+.branch-card--stack .branch-card__meta a {
+  color: hsl(var(--dark) / 0.85);
+  overflow-wrap: anywhere;
+}
+
+.branch-card--stack .branch-card__meta a:hover {
+  color: hsl(var(--base));
+}
+
+.branch-card--stack .branch-card__foot {
+  margin-top: 0;
+}
+
+.branch-card--stack .branch-card__body {
+  flex: 1 1 auto;
+  margin-bottom: 14px;
+}
+
+.branch-card__hours-row {
+  display: contents;
+}
+
+/* --- About (CMS page) -------------------------------------------------------- */
+.about--page .about-video {
+  height: auto;
+  box-shadow: 0 12px 32px hsl(var(--dark) / 0.08);
+}
+
+.about--page .about-copy .section-heading__title {
+  margin-bottom: 16px;
+}
+
+.about--page .about-copy .section-heading__desc p {
+  margin-bottom: 1em;
+  line-height: 1.7;
+}
+
+.about--page .about-copy .section-heading__desc p:last-child {
+  margin-bottom: 0;
+}
+
+/* --- Blog list ----------------------------------------------------------------
+   One card, not a peach card inside a white one; footer pinned to the bottom
+   so every row lines up. Higher specificity than vipuri-catalog.css. */
+.blog .blog-card.blog-card--list {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid hsl(var(--border-color));
+  background: hsl(var(--white));
+  box-shadow: 0 6px 20px hsl(var(--dark) / 0.05);
+  transition:
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.blog .blog-card.blog-card--list:hover {
+  border-color: hsl(var(--base) / 0.5);
+  box-shadow: 0 14px 32px hsl(var(--dark) / 0.09);
+}
+
+.blog .blog-card--list .blog-card__content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 8px 4px;
+  background: transparent;
+}
+
+.blog .blog-card--list .blog-card__content-body {
+  flex: 1 1 auto;
+}
+
+.blog .blog-card--list .blog-card__title {
+  font-size: 1.125rem;
+  line-height: 1.35;
+}
+
+.blog .blog-card--list .blog-card__desc {
+  margin: 0 0 16px;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: hsl(var(--dark) / 0.7);
+}
+
+.blog .blog-card--list .blog-card__content-footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid hsl(var(--border-color));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.blog-card__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--base));
+}
+
+.blog-card--list:hover .blog-card__more i {
+  transform: translateX(3px);
+}
+
+.blog-card__more i {
+  transition: transform 0.2s ease;
+}
+
+/* --- Blog article ------------------------------------------------------------ */
+.blog-article__hero {
+  aspect-ratio: 16 / 9;
+  border-radius: 16px;
+  overflow: hidden;
+  background: hsl(var(--dark) / 0.06);
+  margin-bottom: 20px;
+}
+
+.blog-article__hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.blog-article__date {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(var(--dark) / 0.6);
+}
+
+.blog-article__title {
+  margin: 8px 0 20px;
+  font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2.125rem);
+  line-height: 1.25;
+  color: hsl(var(--dark));
+}
+
+.blog-prose {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: hsl(var(--dark) / 0.82);
+}
+
+.blog-prose > :first-child {
+  margin-top: 0;
+}
+
+.blog-prose > :last-child {
+  margin-bottom: 0;
+}
+
+.blog-prose p {
+  margin: 0 0 1.1em;
+}
+
+.blog-prose h2,
+.blog-prose h3,
+.blog-prose h4,
+.blog-prose h5,
+.blog-prose h6 {
+  margin: 1.75em 0 0.5em;
+  line-height: 1.3;
+  color: hsl(var(--dark));
+}
+
+.blog-prose h2 {
+  font-size: 1.5rem;
+}
+.blog-prose h3 {
+  font-size: 1.3125rem;
+}
+.blog-prose h4,
+.blog-prose h5 {
+  font-size: 1.1875rem;
+}
+.blog-prose h6 {
+  font-size: 1.0625rem;
+}
+
+.blog-prose ul,
+.blog-prose ol {
+  margin: 0 0 1.1em;
+  padding-left: 1.4em;
+}
+
+.blog-prose ul {
+  list-style: disc;
+}
+.blog-prose ol {
+  list-style: decimal;
+}
+
+.blog-prose li {
+  margin-bottom: 0.4em;
+}
+
+.blog-prose li::marker {
+  color: hsl(var(--base));
+}
+
+.blog-prose a {
+  color: hsl(var(--base));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.blog-prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+.blog-prose blockquote {
+  margin: 1.5em 0;
+  padding: 12px 20px;
+  border-left: 3px solid hsl(var(--base));
+  background: hsl(var(--base) / 0.05);
+  border-radius: 0 12px 12px 0;
+}
+
+.blog-sidebar {
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid hsl(var(--border-color));
+  background: hsl(var(--white));
+  box-shadow: 0 6px 20px hsl(var(--dark) / 0.05);
+}
+
+@media screen and (min-width: 992px) {
+  .blog-sidebar {
+    position: sticky;
+    top: calc(var(--header-height, 80px) + 24px);
+  }
+}
+
+.blog-sidebar__title {
+  margin-bottom: 8px;
+}
+
+.blog-sidebar__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.blog-sidebar__item + .blog-sidebar__item {
+  border-top: 1px solid hsl(var(--border-color));
+}
+
+.blog-sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+}
+
+.blog-sidebar__thumb {
+  flex: 0 0 72px;
+  width: 72px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: hsl(var(--dark) / 0.06);
+}
+
+.blog-sidebar__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.blog-sidebar__name {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  color: hsl(var(--dark));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color 0.2s ease;
+}
+
+.blog-sidebar__link:hover .blog-sidebar__name,
+.blog-sidebar__link:focus-visible .blog-sidebar__name {
+  color: hsl(var(--base));
+}
+
+.blog-sidebar__date {
+  font-size: 0.8125rem;
+  color: hsl(var(--dark) / 0.55);
+}
+
+.blog-sidebar__all {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--base));
+}
+
+/* --- Track order timeline ------------------------------------------------------
+   The rail is drawn per item (down to the next dot) so it stops at the last
+   step instead of running past it; the latest step gets a filled ring. */
+.track-timeline.order-timeline::before {
+  display: none;
+}
+
+.track-timeline .order-timeline__item::before {
+  content: '';
+  position: absolute;
+  left: -17px;
+  top: 16px;
+  bottom: -4px;
+  width: 2px;
+  background: hsl(var(--black) / 0.08);
+}
+
+.track-timeline .order-timeline__item:last-child::before {
+  display: none;
+}
+
+.track-timeline .order-timeline__dot {
+  background: hsl(var(--white));
+  border: 2px solid hsl(var(--base));
+  box-shadow: none;
+}
+
+.track-timeline .order-timeline__item.is-current .order-timeline__dot {
+  background: hsl(var(--base));
+  box-shadow: 0 0 0 4px hsl(var(--base) / 0.2);
+}
+
+.track-timeline__label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 2px;
+  font-size: 1rem;
+}
+
+.track-timeline__now {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: hsl(var(--base) / 0.12);
+  color: hsl(var(--base));
+}
+
+.track-timeline__time {
+  display: block;
+  font-size: 0.8125rem;
+  color: hsl(var(--dark) / 0.55);
+}
+
+.track-timeline__remark {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  color: hsl(var(--dark) / 0.65);
+}
+
+/* --- Auth screens (login, register, password recovery) ------------------------ */
+.account-form__agree.form--check {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+
+.account-form__agree .form-check-input {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.account-form__agree .form-check-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.account-form__agree .form-check-label a {
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media screen and (max-width: 991px) {
+  .account .account-content__header {
+    flex-wrap: nowrap;
+    gap: 12px;
+  }
+
+  .account .account-logo img {
+    max-height: 32px;
+  }
+
+  .account .account-info {
+    font-size: 0.875rem;
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  .account .account-content__body {
+    justify-content: flex-start;
+    padding-top: 28px;
+  }
+}
+
+/* Header top bar: the theme's 20px icon circles hold a 10px orange glyph on a
+   25% orange tint, which on the navy bar read as plain brown dots. */
+.header-contact__link .icon {
+  --size: 26px;
+  font-size: 15px;
+  color: hsl(var(--white));
+  background-color: hsl(var(--base));
+}
