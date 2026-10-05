@@ -9,7 +9,20 @@ import { useSettings } from '@/components/providers/AppProviders';
 import { ApiError, api } from '@/lib/api';
 import { toastError, toastSuccess } from '@/lib/toast';
 import type { CategoryNode } from '@/types';
-import { imageUrl } from '@/lib/format';
+import { LOGO_SRC } from '@/lib/brand';
+
+/**
+ * What the shop actually takes at checkout. The template's strip showed card
+ * and wallet logos (AMEX, PayPal…) that VIPURI does not accept, so it is
+ * rendered from this list instead of the `footer_payments` CMS images.
+ */
+const ACCEPTED_PAYMENTS: { label: string; icon: string; tone: string }[] = [
+  { label: 'M-Pesa', icon: 'las la-mobile-alt', tone: 'mpesa' },
+  { label: 'Mixx by Yas', icon: 'las la-mobile-alt', tone: 'mixx' },
+  { label: 'Airtel Money', icon: 'las la-mobile-alt', tone: 'airtel' },
+  { label: 'HaloPesa', icon: 'las la-mobile-alt', tone: 'halopesa' },
+  { label: 'Bank transfer', icon: 'las la-university', tone: 'bank' },
+];
 
 /** Storefront footer, mirroring `partials/footer.blade.php`. */
 export function SiteFooter() {
@@ -24,7 +37,12 @@ export function SiteFooter() {
 
     api<{ categories: CategoryNode[] }>('/categories?parents_only=1', { cache: 'force-cache' })
       .then((data) => {
-        if (!cancelled) setCategories((data.categories ?? []).slice(0, 3));
+        if (cancelled) return;
+
+        // Busiest departments first (Tyres & Wheels is the flagship); ties
+        // keep the admin's own ordering because the sort is stable.
+        const sorted = [...(data.categories ?? [])].sort((a, b) => (b.products_count ?? 0) - (a.products_count ?? 0));
+        setCategories(sorted.slice(0, 5));
       })
       .catch(() => undefined);
 
@@ -68,13 +86,13 @@ export function SiteFooter() {
               <div className="footer-main">
                 <div className="footer-main__header">
                   <Link className="footer-logo" href="/">
-                    <img src={settings?.site.logo ?? '/assets/images/logo_icon/logo-dark.svg'} alt="logo" />
+                    <img src={settings?.site.logo ?? LOGO_SRC} alt={settings?.site.name ?? 'VIPURI'} />
                   </Link>
                   <p className="footer-desc">{footer.short_description ?? ''}</p>
                 </div>
                 <div className="footer-main__body">
                   <div className="row gy-4">
-                    <div className="col-sm-6 col-lg-3">
+                    <div className="col-6 col-lg-2">
                       <div className="footer-item">
                         <h3 className="footer-item__title h6">{t('Quick Links')}</h3>
                         <ul className="footer-menu">
@@ -101,7 +119,7 @@ export function SiteFooter() {
                         </ul>
                       </div>
                     </div>
-                    <div className="col-sm-6 col-lg-3">
+                    <div className="col-6 col-lg-3">
                       <div className="footer-item">
                         <h3 className="footer-item__title h6">{t('Categories')}</h3>
                         <ul className="footer-menu">
@@ -115,7 +133,7 @@ export function SiteFooter() {
                         </ul>
                       </div>
                     </div>
-                    <div className="col-sm-6 col-lg-3">
+                    <div className="col-6 col-lg-3">
                       <div className="footer-item">
                         <h3 className="footer-item__title h6">{t('Policy Links')}</h3>
                         <ul className="footer-menu">
@@ -129,15 +147,18 @@ export function SiteFooter() {
                         </ul>
                       </div>
                     </div>
-                    <div className="col-sm-6 col-lg-3">
-                      <div className="footer-item">
-                        <h4 className="footer-item__title h6">{t('Contact Info')}</h4>
+                    <div className="col-sm-6 col-lg-4">
+                      <div className="footer-item footer-item--contact">
+                        <h3 className="footer-item__title h6">{t('Contact Info')}</h3>
                         <ul className="footer-contact-menu">
                           <li className="footer-contact-menu__item">
                             <div className="footer-contact-menu__icon">
                               <i className="las la-phone" />
                             </div>
-                            <a className="footer-contact-menu__link" href={`tel:${contact.number ?? ''}`}>
+                            <a
+                              className="footer-contact-menu__link"
+                              href={`tel:${(contact.number ?? '').replace(/[^\d+]/g, '')}`}
+                            >
                               {contact.number ?? ''}
                             </a>
                           </li>
@@ -204,7 +225,10 @@ export function SiteFooter() {
 
               <div className="footer-action">
                 <div className="footer-action__header">
-                  <h6 className="footer-action__title">Social &amp; Branches</h6>
+                  <h3 className="footer-action__title h6">{t('Follow us')}</h3>
+                  <Link className="footer-action__link" href="/branches">
+                    {t('Find a branch')} <i className="las la-arrow-right" aria-hidden="true" />
+                  </Link>
                 </div>
                 <div className="footer-action__body">
                   <ul className="social-list">
@@ -224,23 +248,47 @@ export function SiteFooter() {
                     ) : (
                       <>
                         <li className="social-list__item">
-                          <a className="social-list__link" href="https://facebook.com" target="_blank" rel="noreferrer">
-                            <i className="fab fa-facebook-f" />
+                          <a
+                            className="social-list__link"
+                            href="https://facebook.com"
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="Facebook"
+                          >
+                            <i className="fa-brands fa-facebook-f" />
                           </a>
                         </li>
                         <li className="social-list__item">
-                          <a className="social-list__link" href="https://x.com" target="_blank" rel="noreferrer">
+                          <a
+                            className="social-list__link"
+                            href="https://x.com"
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="X"
+                          >
                             <i className="fa-brands fa-x-twitter" />
                           </a>
                         </li>
                         <li className="social-list__item">
-                          <a className="social-list__link" href="https://linkedin.com" target="_blank" rel="noreferrer">
-                            <i className="fab fa-linkedin-in" />
+                          <a
+                            className="social-list__link"
+                            href="https://linkedin.com"
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="LinkedIn"
+                          >
+                            <i className="fa-brands fa-linkedin-in" />
                           </a>
                         </li>
                         <li className="social-list__item">
-                          <a className="social-list__link" href="https://instagram.com" target="_blank" rel="noreferrer">
-                            <i className="lab la-instagram" />
+                          <a
+                            className="social-list__link"
+                            href="https://instagram.com"
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="Instagram"
+                          >
+                            <i className="fa-brands fa-instagram" />
                           </a>
                         </li>
                       </>
@@ -259,14 +307,17 @@ export function SiteFooter() {
             Copyright &copy; {new Date().getFullYear()} <Link href="/">{settings?.site.name ?? 'VIPURI'}</Link>. All
             Rights Reserved
           </p>
-          <ul className="footer-payment">
-            {(settings?.footer_payments ?? []).map((payment) => (
-              <li className="footer-payment__item" key={payment.id}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="footer-payment__logo" src={imageUrl(payment.image)} alt="image" />
-              </li>
-            ))}
-          </ul>
+          <div className="footer-accepts">
+            <span className="footer-accepts__label">{t('We accept')}</span>
+            <ul className="footer-accepts__list">
+              {ACCEPTED_PAYMENTS.map((payment) => (
+                <li className={`footer-accepts__chip footer-accepts__chip--${payment.tone}`} key={payment.label}>
+                  <i className={payment.icon} aria-hidden="true" />
+                  {payment.label}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
     </footer>

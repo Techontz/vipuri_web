@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { ProductCard } from '@/components/product/ProductCard';
 import { VehicleFinder } from '@/components/product/VehicleFinder';
+import { api } from '@/lib/api';
 import { formatDate, imageUrl } from '@/lib/format';
-import type { HomePayload, ProductCard as ProductCardType } from '@/types';
+import type { CategoryNode, HomePayload, ProductCard as ProductCardType } from '@/types';
 
 type Block = Record<string, string>;
 
@@ -128,18 +129,66 @@ function BannerSection({ items }: { items: Block[] }) {
 
 /* -------------------------- Popular categories --------------------------- */
 
-function PopularCategoriesSection({ content, categories }: { content: Block; categories: HomePayload['popular_categories'] }) {
-  if (categories.length === 0) return null;
+type PopularCategory = HomePayload['popular_categories'][number] & { parent_id?: number | null };
+
+/**
+ * Child id -> parent id, read from the category tree. Only needed while the
+ * home payload's popular categories do not carry `parent_id` themselves.
+ */
+function useCategoryParents(enabled: boolean): Map<number, number> | null {
+  const [parents, setParents] = useState<Map<number, number> | null>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+
+    api<{ categories: CategoryNode[] }>('/categories', { cache: 'force-cache' })
+      .then((data) => {
+        if (cancelled) return;
+        const map = new Map<number, number>();
+        (data.categories ?? []).forEach((parent) =>
+          parent.subcategories?.forEach((child) => map.set(child.id, parent.id)),
+        );
+        setParents(map);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
+
+  return parents;
+}
+
+function PopularCategoriesSection({ content, categories }: { content: Block; categories: PopularCategory[] }) {
+  const needsTree = categories.length > 0 && categories.some((category) => category.parent_id === undefined);
+  const parents = useCategoryParents(needsTree);
+
+  // A subcategory is redundant next to its own parent ("Tyres" beside
+  // "Tyres & Wheels"): the parent's page already lists it.
+  const visible = useMemo(() => {
+    const ids = new Set(categories.map((category) => category.id));
+
+    return categories
+      .filter((category) => {
+        const parentId = category.parent_id ?? parents?.get(category.id) ?? null;
+        return parentId === null || !ids.has(parentId);
+      })
+      .slice(0, 6);
+  }, [categories, parents]);
+
+  if (visible.length === 0) return null;
 
   return (
     <section className="popular-cat mt-60 mb-120">
       <div className="container">
         <SectionHeading tag={content.tag} title={content.title} buttonText={content.button} buttonUrl={content.button_url} />
         <div className="row justify-content-center g-3">
-          {categories.slice(0, 6).map((category) => (
-            <div className="col-6 col-md-3 col-xl-2" key={category.id}>
+          {visible.map((category) => (
+            <div className="col-6 col-md-4 col-xl-2" key={category.id}>
               <Link className="cat-card" href={`/products?category=${category.slug}`}>
-                <img className="cat-card__thumb" src={imageUrl(category.image ?? category.icon)} alt="image" />
+                <img className="cat-card__thumb" src={imageUrl(category.image ?? category.icon)} alt={category.name} />
                 <span className="cat-card__name">{category.name}</span>
               </Link>
             </div>
@@ -152,10 +201,24 @@ function PopularCategoriesSection({ content, categories }: { content: Block; cat
 
 /* ---------------------------- Latest products ---------------------------- */
 
-function LatestProductSection({ content, products }: { content: Block; products: ProductCardType[] }) {
-  // The original groups the latest arrivals by top-level category tabs.
-  const groups = useMemo(() => {
-    const map = new Map<string, { name: string; slug: string; products: ProductCardType[] }>();
+type LatestGroup = { name: string; slug: string; image?: string | null; products: ProductCardType[] };
+
+function LatestProductSection({
+  content,
+  products,
+  departments,
+}: {
+  content: Block;
+  products: ProductCardType[];
+  departments?: HomePayload['latest_by_category'];
+}) {
+  // The original groups the latest arrivals by top-level category tabs. The
+  // API now ranks the departments itself (busiest first, empty ones filling
+  // the menu); grouping the flat list is the fallback for an older API.
+  const groups = useMemo<LatestGroup[]>(() => {
+    if (departments?.length) return departments;
+
+    const map = new Map<string, LatestGroup>();
 
     products.forEach((product) => {
       const category = product.categories?.[0];
@@ -169,7 +232,7 @@ function LatestProductSection({ content, products }: { content: Block; products:
     });
 
     return Array.from(map.values()).slice(0, 7);
-  }, [products]);
+  }, [products, departments]);
 
   if (groups.length === 0) return null;
 
@@ -218,13 +281,32 @@ function LatestProductSection({ content, products }: { content: Block; products:
                   tabIndex={0}
                   key={group.slug}
                 >
-                  <div className="row gy-4">
-                    {group.products.slice(0, 3).map((product) => (
-                      <div className="col-sm-6 col-md-4" key={product.id}>
-                        <ProductCard product={product} showcase="popular" />
+                  {group.products.length > 0 ? (
+                    <div className="row g-3 g-md-4">
+                      {group.products.slice(0, 3).map((product) => (
+                        <div className="col-6 col-md-4" key={product.id}>
+                          <ProductCard product={product} showcase="popular" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div
+                      className="latest-product-empty bg-img"
+                      style={group.image ? { backgroundImage: `url(${imageUrl(group.image)})` } : undefined}
+                    >
+                      <div className="latest-product-empty__body">
+                        <span className="latest-product-empty__tag">Coming soon</span>
+                        <h3 className="latest-product-empty__title">New {group.name} arriving soon</h3>
+                        <p className="latest-product-empty__desc">
+                          We are adding genuine {group.name.toLowerCase()} to the catalogue. Ask at any VIPURI branch for
+                          what is in stock today.
+                        </p>
+                        <Link className="btn btn--base" href={`/products?category=${group.slug}`}>
+                          Browse {group.name}
+                        </Link>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -276,12 +358,16 @@ function CtaSection({ content }: { content: Block }) {
 function BrandSection({ content, brands }: { content: Block; brands: HomePayload['popular_brands'] }) {
   if (brands.length === 0) return null;
 
+  // A short list (VIPURI stocks two brands today) gets wider tiles centred
+  // in the band instead of two small tiles adrift in an empty panel.
+  const few = brands.length <= 3;
+
   return (
     <section className="brand my-120">
       <div className="container">
-        <div className="brand-card">
+        <div className={`brand-card${few ? ' brand-card--few' : ''}`}>
           <div className="row gy-4 align-items-center">
-            <div className="col-xl-4">
+            <div className={few ? 'col-lg-5' : 'col-xl-4'}>
               <div className="section-heading style-left">
                 <span className="section-heading__tagline">{content.tag}</span>
                 <div className="section-heading__inner">
@@ -292,13 +378,13 @@ function BrandSection({ content, brands }: { content: Block; brands: HomePayload
                 {content.button || 'View All Brands'}
               </Link>
             </div>
-            <div className="col-xl-8">
-              <div className="row justify-content-center gy-4">
+            <div className={few ? 'col-lg-7' : 'col-xl-8'}>
+              <div className="row justify-content-center g-3">
                 {brands.slice(0, 8).map((brand) => (
-                  <div className="col-md-3 col-4" key={brand.id}>
+                  <div className={few ? 'col-6 col-sm-5 col-md-4' : 'col-md-3 col-4'} key={brand.id}>
                     <Link className="brand-item" href={`/products?brand_slug=${brand.slug}`}>
                       <div className="brand-item__logo">
-                        <img src={imageUrl(brand.logo)} alt="brand image" />
+                        <img src={imageUrl(brand.logo)} alt={brand.name} />
                       </div>
                       <span className="brand-item__name">{brand.name}</span>
                     </Link>
@@ -375,6 +461,11 @@ function LimitedStockSection({ content, products }: { content: Block; products: 
 function SpecialOfferSection({ content, products }: { content: Block; products: ProductCardType[] }) {
   if (products.length === 0) return null;
 
+  // The sidebar is CMS content (special_offer.content); the theme's own photo
+  // is only the fallback for a section nobody has filled in.
+  const sidebarImage = content.sidebar_image || '/assets/templates/basic/images/thumbs/special-offer-thumb.jpg';
+  const sidebarUrl = content.sidebar_url ? `/${String(content.sidebar_url).replace(/^\//, '')}` : '/products?deals=1';
+
   return (
     <section className="special-offer my-120">
       <div className="container">
@@ -404,9 +495,9 @@ function SpecialOfferSection({ content, products }: { content: Block; products: 
           </div>
         </div>
 
-        <div className="row">
+        <div className="row gy-4">
           <div className="col-lg-9">
-            <div className="row gy-4">
+            <div className="row g-3 g-md-4">
               {products.slice(0, 3).map((product) => (
                 <ProductCard product={product} showcase="special_offer_product" key={product.id} />
               ))}
@@ -415,15 +506,15 @@ function SpecialOfferSection({ content, products }: { content: Block; products: 
           <div className="col-lg-3">
             <div
               className="special-offer-sidebar bg-img"
-              data-background-image="/assets/templates/basic/images/thumbs/special-offer-thumb.jpg"
-              style={{ backgroundImage: 'url(/assets/templates/basic/images/thumbs/special-offer-thumb.jpg)' }}
+              data-background-image={sidebarImage}
+              style={{ backgroundImage: `url(${sidebarImage})` }}
             >
               <div className="special-offer-sidebar__body">
                 <h3 className="special-offer-sidebar__title" data-highlight-position="[1,2]">
-                  Genuine parts, fair prices, countrywide delivery
+                  {content.sidebar_title || 'Genuine parts, fair prices, countrywide delivery'}
                 </h3>
-                <Link className="btn btn--sm btn--base" href="/products?deals=1">
-                  Shop Now
+                <Link className="btn btn--sm btn--base" href={sidebarUrl}>
+                  {content.sidebar_button || 'Shop Now'}
                 </Link>
               </div>
             </div>
@@ -452,18 +543,25 @@ function AboutSection({ content, brandLogos }: { content: Block; brandLogos: Blo
                 dangerouslySetInnerHTML={{ __html: content.description ?? '' }}
               />
             </div>
-            <div className="about-rating">
-              <img className="about-rating__thumb" src={cmsImage(content.avatar_image)} alt="image" />
-              <div className="about-rating__content">
-                <h5 className="about-rating__title">{content.review_text}</h5>
-                <ul className="rating-list">
-                  <StaticRating value={Number(content.rating ?? 0)} />
-                  <li className="rating-list__item">
-                    <span className="rating-list__text">{content.review_number}</span>
-                  </li>
-                </ul>
+            {/* Rating, brand strip and video each render only when the CMS
+                fills them, so an empty field never shows invented numbers. */}
+            {content.review_text && (
+              <div className="about-rating">
+                {content.avatar_image && <img className="about-rating__thumb" src={cmsImage(content.avatar_image)} alt="" />}
+                <div className="about-rating__content">
+                  <h5 className="about-rating__title">{content.review_text}</h5>
+                  {Number(content.rating) > 0 && (
+                    <ul className="rating-list">
+                      <StaticRating value={Number(content.rating)} />
+                      <li className="rating-list__item">
+                        <span className="rating-list__text">{content.review_number}</span>
+                      </li>
+                    </ul>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
+            {brandLogos.length > 0 && (
             <div className="about-brand">
               <div className="about-brand__left">
                 <h6 className="about-brand__title">{content.brand_text}</h6>
@@ -480,14 +578,21 @@ function AboutSection({ content, brandLogos }: { content: Block; brandLogos: Blo
                 </div>
               </div>
             </div>
+            )}
           </div>
           <div className="col-lg-6">
-            <a className="about-video lightbox-image" href={content.video_url || '#'} data-caption="">
-              <img className="about-video__thumb" src={cmsImage(content.image)} alt="image" />
-              <span className="about-video__play">
-                <i className="las la-play" />
-              </span>
-            </a>
+            {content.video_url ? (
+              <a className="about-video lightbox-image" href={content.video_url} data-caption="">
+                <img className="about-video__thumb" src={cmsImage(content.image)} alt={content.subtitle ?? ''} />
+                <span className="about-video__play">
+                  <i className="las la-play" />
+                </span>
+              </a>
+            ) : (
+              <div className="about-video">
+                <img className="about-video__thumb" src={cmsImage(content.image)} alt={content.subtitle ?? ''} />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -624,7 +729,7 @@ function BlogSection({ content, items }: { content: Block; items: Block[] }) {
             <div className="col-xxl-4 col-lg-4 col-md-6" key={index}>
               <div className="blog-card">
                 <div className="blog-card__thumb">
-                  <img src={cmsImage(blog.image)} alt="image" />
+                  <img src={cmsImage(blog.image)} alt={blog.title ?? ''} />
                 </div>
                 <div className="blog-card__content">
                   <div className="blog-card__content-body">
@@ -689,7 +794,14 @@ export function HomeSections({ home }: { home: HomePayload }) {
           />
         );
       case 'latest_product':
-        return <LatestProductSection key={key} content={block(sections, 'latest_product')} products={home.latest_products} />;
+        return (
+          <LatestProductSection
+            key={key}
+            content={block(sections, 'latest_product')}
+            products={home.latest_products}
+            departments={home.latest_by_category}
+          />
+        );
       case 'cta':
         return <CtaSection key={key} content={block(sections, 'cta')} />;
       case 'top_deals':

@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { useAdmin } from '@/components/admin/AdminProviders';
 import { api } from '@/lib/api';
 import { formatDate, imageUrl } from '@/lib/format';
+import { LOGO_SRC } from '@/lib/brand';
 
 type MenuItem = {
   label: string;
@@ -216,7 +217,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <div className="sidebar__inner">
           <div className="sidebar__logo">
             <Link href="/admin" className="sidebar__main-logo">
-              <img src="/assets/images/logo_icon/logo-dark.svg" alt="VIPURI" />
+              <img src={LOGO_SRC} alt="VIPURI" />
             </Link>
           </div>
           <div className="sidebar__menu-wrapper">

@@ -266,30 +266,43 @@ export function ProductFilter({
             <span className="filter-form-block__label">Filter by Price</span>
           </div>
           <div className="filter-form-block__body">
-            <div className="filter-form-range mb-3">
-              <input
-                className="filter-form-range__input"
-                type="number"
-                step="any"
-                min={0}
-                name="min_price"
-                value={value.min_price}
-                placeholder={String(Math.floor(priceRange.min))}
-                onChange={(event) => onChange({ min_price: event.target.value })}
-              />
-              <input
-                className="filter-form-range__input"
-                type="number"
-                step="any"
-                min={0}
-                name="max_price"
-                value={value.max_price}
-                placeholder={String(Math.ceil(priceRange.max))}
-                onChange={(event) => onChange({ max_price: event.target.value })}
-              />
+            <div className="filter-form-range price-range mb-3">
+              <label className="price-range__field">
+                <span className="price-range__prefix">TZS</span>
+                <input
+                  className="filter-form-range__input"
+                  type="number"
+                  inputMode="numeric"
+                  step="any"
+                  min={0}
+                  name="min_price"
+                  aria-label="Minimum price (TZS)"
+                  value={value.min_price}
+                  placeholder="Min"
+                  onChange={(event) => onChange({ min_price: event.target.value })}
+                />
+              </label>
+              <span className="price-range__dash" aria-hidden="true">
+                &ndash;
+              </span>
+              <label className="price-range__field">
+                <span className="price-range__prefix">TZS</span>
+                <input
+                  className="filter-form-range__input"
+                  type="number"
+                  inputMode="numeric"
+                  step="any"
+                  min={0}
+                  name="max_price"
+                  aria-label="Maximum price (TZS)"
+                  value={value.max_price}
+                  placeholder="Max"
+                  onChange={(event) => onChange({ max_price: event.target.value })}
+                />
+              </label>
             </div>
             <p className="mb-0 text-muted" style={{ fontSize: 13 }}>
-              {showAmount(priceRange.min)} &ndash; {showAmount(priceRange.max)}
+              Prices from {showAmount(priceRange.min)} to {showAmount(priceRange.max)}
             </p>
           </div>
         </div>

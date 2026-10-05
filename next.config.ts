@@ -1,8 +1,9 @@
 import path from 'node:path';
 import type { NextConfig } from 'next';
 
-const backend = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://127.0.0.1:8000';
-const { protocol, hostname, port } = new URL(backend);
+import { BACKEND_URL } from './src/lib/env';
+
+const { protocol, hostname, port } = new URL(BACKEND_URL);
 
 const nextConfig: NextConfig = {
   // Local development is reached over both localhost and 127.0.0.1; without
@@ -22,6 +23,13 @@ const nextConfig: NextConfig = {
         hostname,
         port: port || undefined,
         pathname: '/media/**',
+      },
+      {
+        // The live server also exposes the same files through the storage link.
+        protocol: protocol.replace(':', '') as 'http' | 'https',
+        hostname,
+        port: port || undefined,
+        pathname: '/storage/**',
       },
     ],
   },

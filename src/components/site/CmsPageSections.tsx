@@ -16,7 +16,8 @@ export function CmsPageSections({
   order: string[];
 }) {
   const content = (key: string) => (sections[`${key}.content`] ?? {}) as Record<string, string>;
-  const elements = (key: string) => (Array.isArray(sections[`${key}.element`]) ? (sections[`${key}.element`] as Record<string, string>[]) : []);
+  const elements = (key: string) =>
+    Array.isArray(sections[`${key}.element`]) ? (sections[`${key}.element`] as Record<string, string>[]) : [];
 
   return (
     <>
@@ -27,19 +28,26 @@ export function CmsPageSections({
             if (!block.subtitle && !block.description) return null;
 
             return (
-              <section className="about my-120" key={key}>
+              <section className="about about--page my-120" key={key}>
                 <div className="container">
-                  <div className="row flex-wrap-reverse gy-4">
+                  <div className="row flex-wrap-reverse align-items-center gy-4 gx-lg-5">
                     <div className="col-lg-6">
-                      <div className="section-heading style-left">
-                        <span className="section-heading__tagline">{block.title}</span>
+                      <div className="section-heading style-left about-copy">
+                        {block.title && <span className="section-heading__tagline">{block.title}</span>}
                         <h2 className="section-heading__title">{block.subtitle}</h2>
-                        <div className="section-heading__desc mb-3" dangerouslySetInnerHTML={{ __html: block.description ?? '' }} />
+                        <div
+                          className="section-heading__desc"
+                          dangerouslySetInnerHTML={{ __html: block.description ?? '' }}
+                        />
                       </div>
                     </div>
-                    <div className="col-lg-6">
-                      {block.image && <img className="about-video__thumb" src={imageUrl(block.image)} alt="about" />}
-                    </div>
+                    {block.image && (
+                      <div className="col-lg-6">
+                        <div className="about-video">
+                          <img className="about-video__thumb" src={imageUrl(block.image)} alt={block.subtitle ?? ''} />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </section>
@@ -84,7 +92,13 @@ export function CmsPageSections({
                           </div>
                           <div className="testimonial-card__footer">
                             <div className="testimonial-card-info">
-                              {item.image && <img className="testimonial-card-info__thumb" src={imageUrl(item.image)} alt={item.name} />}
+                              {item.image && (
+                                <img
+                                  className="testimonial-card-info__thumb"
+                                  src={imageUrl(item.image)}
+                                  alt={item.name}
+                                />
+                              )}
                               <div className="testimonial-card-info__content">
                                 <h6 className="testimonial-card-info__name">{item.name}</h6>
                                 <span className="testimonial-card-info__designation">{item.designation}</span>

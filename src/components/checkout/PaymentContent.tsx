@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { useTranslate } from '@/components/providers/LanguageProvider';
 import { ApiError, api } from '@/lib/api';
-import { imageUrl, showAmount } from '@/lib/format';
+import { showAmount } from '@/lib/format';
 import { toastError, toastSuccess } from '@/lib/toast';
 import type { Order } from '@/types';
 
@@ -28,12 +28,38 @@ type PaymentMethod = {
 
 type GatewayField = { title: string; type: string; validation?: string };
 
+type MobileMoneyRequest = { trx: string; push_sent: boolean; network: string; phone: string; amount: number };
+
+/** Mobile prefixes (after 255) by network — mirrors App\Support\MobileMoney. */
+const NETWORKS: { name: string; prefixes: string[] }[] = [
+  { name: 'M-Pesa (Vodacom)', prefixes: ['74', '75', '76'] },
+  { name: 'Mixx by Yas (Tigo Pesa)', prefixes: ['65', '67', '71', '77'] },
+  { name: 'Airtel Money', prefixes: ['68', '69', '78'] },
+  { name: 'HaloPesa (Halotel)', prefixes: ['61', '62'] },
+  { name: 'T-Pesa (TTCL)', prefixes: ['73'] },
+];
+
+/** The 9 digits after +255, from whatever the customer typed. */
+function localDigits(input: string): string {
+  let digits = input.replace(/\D+/g, '');
+  if (digits.startsWith('255')) digits = digits.slice(3);
+  else if (digits.startsWith('0')) digits = digits.slice(1);
+  return digits.slice(0, 9);
+}
+
+function detectNetwork(digits: string): string | null {
+  const prefix = digits.slice(0, 2);
+  return NETWORKS.find((network) => network.prefixes.includes(prefix))?.name ?? null;
+}
+
 /**
- * Payment step, mirroring `components/payment/basic/payment.blade.php`.
+ * Payment step.
  *
- * Automatic gateways redirect to the provider; manual gateways (M-Pesa, Tigo
- * Pesa, Airtel Money, bank transfer) show the instructions plus the proof-of-
- * payment form the administrator will review.
+ * Customers pay by mobile money with just their phone number: the network is
+ * recognised from the number, so there is no M-Pesa / Tigo Pesa / Airtel Money
+ * list to choose from. Until a USSD-push provider is connected the request is
+ * queued for VIPURI to collect and confirm (`push_sent: false`). Bank transfer
+ * stays available as the one alternative, using the proof-of-payment form.
  */
 export function PaymentContent({ orderNumber }: { orderNumber: string }) {
   const t = useTranslate();
@@ -46,6 +72,8 @@ export function PaymentContent({ orderNumber }: { orderNumber: string }) {
   const [detail, setDetail] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [request, setRequest] = useState<MobileMoneyRequest | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,7 +86,11 @@ export function PaymentContent({ orderNumber }: { orderNumber: string }) {
         if (cancelled) return;
         setOrder(data.order);
         setMethods(data.methods ?? []);
-        setSelected(data.methods?.[0] ?? null);
+        setSelected(data.methods?.find((method) => method.gateway_alias === 'bank-transfer') ?? null);
+
+        // Start from the number the order was placed with.
+        const known = data.order.shipping_address?.mobile ?? data.order.customer?.mobile ?? data.order.guest?.mobile ?? '';
+        setPhone(localDigits(known));
       })
       .catch((error) => {
         if (!cancelled) toastError(error instanceof ApiError ? error.message : 'Could not load payment methods');
@@ -104,6 +136,33 @@ export function PaymentContent({ orderNumber }: { orderNumber: string }) {
     }
   };
 
+  const digits = localDigits(phone);
+  const network = digits.length >= 2 ? detectNetwork(digits) : null;
+  const phoneValid = digits.length === 9 && network !== null;
+  const mobileMoneyAvailable = methods.some((method) => /mpesa|tigopesa|airtelmoney/.test(method.gateway_alias));
+
+  const requestMobileMoney = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!phoneValid) return;
+
+    setBusy(true);
+
+    try {
+      const data = await api<MobileMoneyRequest>(`/checkout/${orderNumber}/mobile-money`, {
+        method: 'POST',
+        cart: true,
+        auth: 'user',
+        body: { phone: `+255${digits}` },
+      });
+
+      setRequest(data);
+    } catch (error) {
+      toastError(error instanceof ApiError ? error.message : 'Could not send the payment request');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submitManual = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -140,23 +199,47 @@ export function PaymentContent({ orderNumber }: { orderNumber: string }) {
     );
   }
 
-  const charge = selected ? selected.fixed_charge + ((order?.total ?? 0) * selected.percent_charge) / 100 : 0;
-
   return (
     <section className="payment my-120">
       <div className="container">
         <div className="row gy-4 justify-content-center">
           <div className="col-lg-7">
             <div className="checkout-card">
-              <h5 className="checkout-card__title">Choose how to pay</h5>
-
-              {methods.length === 0 ? (
-                <p className="mb-0">
-                  No payment method is currently available. Please contact VIPURI support and we will take your payment
-                  another way.
-                </p>
+              {request ? (
+                <div className="momo-result">
+                  <span className="momo-result__icon">
+                    <i className={request.push_sent ? 'las la-mobile' : 'las la-check'} />
+                  </span>
+                  {request.push_sent ? (
+                    <>
+                      <h5 className="momo-result__title">Check your phone</h5>
+                      <p className="momo-result__desc">
+                        We sent a {request.network} payment prompt to <strong>{request.phone}</strong>. Enter your PIN to
+                        pay <strong>{showAmount(request.amount)}</strong>.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h5 className="momo-result__title">Payment request received</h5>
+                      <p className="momo-result__desc">
+                        We have your {request.network} number <strong>{request.phone}</strong> for{' '}
+                        <strong>{showAmount(request.amount)}</strong>. VIPURI will confirm your payment and update your
+                        order — you will be notified as soon as it is confirmed.
+                      </p>
+                    </>
+                  )}
+                  <span className="momo-result__ref">Reference: {request.trx}</span>
+                  <button
+                    className="btn btn--base w-100 mt-4"
+                    type="button"
+                    onClick={() => router.push(`/order-confirmation/${orderNumber}`)}
+                  >
+                    View my order
+                  </button>
+                </div>
               ) : manual ? (
                 <form onSubmit={submitManual}>
+                  <h5 className="checkout-card__title">Pay by bank transfer</h5>
                   {manual.instructions && (
                     <div
                       className="payment-instructions mb-4"
@@ -170,7 +253,7 @@ export function PaymentContent({ orderNumber }: { orderNumber: string }) {
                       <label className="form--label">{field.title}</label>
                       <input
                         className="form-control form--control"
-                        type={field.type === 'file' ? 'text' : 'text'}
+                        type="text"
                         required={field.validation === 'required'}
                         value={detail[key] ?? ''}
                         onChange={(event) => setDetail((current) => ({ ...current, [key]: event.target.value }))}
@@ -181,58 +264,78 @@ export function PaymentContent({ orderNumber }: { orderNumber: string }) {
                   <button className="btn btn--base w-100" type="submit" disabled={busy}>
                     {busy ? 'Submitting…' : 'Submit payment for review'}
                   </button>
+                  <button className="btn btn-link w-100 mt-2 momo-switch" type="button" onClick={() => setManual(null)}>
+                    Pay with mobile money instead
+                  </button>
+                </form>
+              ) : mobileMoneyAvailable ? (
+                <form onSubmit={requestMobileMoney}>
+                  <h5 className="checkout-card__title">Pay with mobile money</h5>
+                  <p className="momo-lead">
+                    Enter your phone number and confirm the payment on your phone. M-Pesa, Mixx by Yas, Airtel Money and
+                    HaloPesa are all accepted.
+                  </p>
+
+                  <label className="form--label" htmlFor="momo-phone">
+                    Phone number
+                  </label>
+                  <div className="input-group input--group momo-phone">
+                    <span className="input-group-text">+255</span>
+                    <input
+                      id="momo-phone"
+                      className="form-control form--control"
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel-national"
+                      placeholder="754 123 456"
+                      required
+                      value={phone}
+                      onChange={(event) => setPhone(localDigits(event.target.value))}
+                    />
+                  </div>
+                  <div className="momo-network">
+                    {network ? (
+                      <span className="momo-network__badge">
+                        <i className="las la-sim-card" /> {network}
+                      </span>
+                    ) : digits.length >= 2 ? (
+                      <span className="momo-network__error">This does not look like a Tanzanian mobile number</span>
+                    ) : null}
+                  </div>
+
+                  <button className="btn btn--base w-100 mt-3" type="submit" disabled={busy || !phoneValid}>
+                    {busy ? 'Sending request…' : `Pay ${showAmount(order?.total ?? 0)}`}
+                  </button>
+
+                  {selected && (
+                    <button className="btn btn-link w-100 mt-2 momo-switch" type="button" onClick={startPayment} disabled={busy}>
+                      Pay by bank transfer instead
+                    </button>
+                  )}
                 </form>
               ) : (
-                <>
-                  <ul className="payment-method-list">
-                    {methods.map((method) => (
-                      <li key={method.id}>
-                        <label className="form-check form--check d-flex align-items-center gap-3 py-3">
-                          <input
-                            className="form-check-input"
-                            type="radio"
-                            name="gateway"
-                            checked={selected?.id === method.id}
-                            onChange={() => setSelected(method)}
-                          />
-                          {method.image && (
-                            <img src={imageUrl(method.image)} alt={method.name} width={48} height={32} />
-                          )}
-                          <span className="flex-grow-1">
-                            <strong>{method.name}</strong>
-                            {method.is_manual && (
-                              <span className="d-block" style={{ fontSize: 13 }}>
-                                Confirmed by VIPURI after you send the payment
-                              </span>
-                            )}
-                          </span>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {selected && charge > 0 && (
-                    <p className="mt-3 mb-0">
-                      Processing charge: <strong>{showAmount(charge)}</strong>
-                    </p>
-                  )}
-
-                  <button className="btn btn--base w-100 mt-4" type="button" onClick={startPayment} disabled={busy || !selected}>
-                    {busy ? 'Starting…' : `Pay ${showAmount((order?.total ?? 0) + charge)}`}
-                  </button>
-                </>
+                <p className="mb-0">
+                  No payment method is currently available. Please contact VIPURI support and we will take your payment
+                  another way.
+                </p>
               )}
             </div>
           </div>
 
           <div className="col-lg-5">
             <div className="checkout-information">
-              <h5 className="title mb-3">Order {order?.order_number}</h5>
+              <h5 className="checkout-card__title mb-1">Order summary</h5>
+              <p className="checkout-information__sub">Order {order?.order_number ?? orderNumber}</p>
 
               <ul className="checkout-information__list">
                 <li>
                   <span>{t('Subtotal')}</span> <span>{showAmount(order?.subtotal ?? 0)}</span>
                 </li>
+                {(order?.total_tax ?? 0) > 0 && (
+                  <li className="summary-vat">
+                    <span>VAT (included)</span> <span>{showAmount(order?.total_tax ?? 0)}</span>
+                  </li>
+                )}
                 <li>
                   <span>Delivery</span> <span>{showAmount(order?.shipping_charge ?? 0)}</span>
                 </li>

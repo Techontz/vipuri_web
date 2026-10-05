@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import { useTranslate } from '@/components/providers/LanguageProvider';
 import { ApiError, api } from '@/lib/api';
 import { formatDate, imageUrl, showAmount } from '@/lib/format';
+import { formatPlace, orderTone, paymentLabel, paymentTone } from '@/lib/status';
 import type { Order } from '@/types';
 
 /**
@@ -85,20 +86,58 @@ export function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
 
   const address = order.shipping_address ?? {};
 
+  // Only call it confirmed once the money is in (or it is cash on delivery).
+  const cancelled = order.status === 6 || order.status === 7;
+  const settled = order.payment_status === 1 || order.cod;
+  const underReview = order.payment_status === 2;
+  // Once dispatched or delivered, payment is settled with VIPURI directly —
+  // the same rule as the order page in the customer account.
+  const shipped = order.status === 3 || order.status === 4;
+  const canPay = !settled && !underReview && !cancelled && !shipped;
+
+  const headline = cancelled
+    ? 'This order was cancelled'
+    : settled
+      ? 'Thank you, your order is confirmed'
+      : shipped
+        ? order.status === 4
+          ? 'Your order has been delivered'
+          : 'Your order is on its way'
+        : underReview
+        ? 'Order placed — payment under review'
+        : 'Order placed — awaiting payment';
+
+  const tone = cancelled ? 'danger' : settled || shipped ? 'success' : underReview ? 'info' : 'warning';
+  const icon = cancelled ? 'las la-times' : settled ? 'las la-check' : shipped ? 'las la-truck' : underReview ? 'las la-hourglass-half' : 'las la-clock';
+
   return (
     <section className="order-confirmation my-120">
       <div className="container">
         <div className="order-confirmation__header text-center">
-          <img src="/assets/templates/basic/images/order-completed.gif" alt="Order placed" width={140} height={140} />
-          <h3 className="mt-3">Thank you, your order is confirmed</h3>
-          <p className="mt-2">
+          <span className={`order-confirmation__icon order-confirmation__icon--${tone}`} aria-hidden="true">
+            <i className={icon} />
+          </span>
+          <h3 className="order-confirmation__title">{headline}</h3>
+          <p className="order-confirmation__lead">
             Order <strong>{order.order_number}</strong> was placed on {formatDate(order.created_at, true)}.
+            {canPay && ' Complete your payment so we can prepare it for dispatch.'}
           </p>
-          <div className="d-flex gap-2 justify-content-center mt-3 flex-wrap">
-            <span className="badge badge--base">{order.status_label}</span>
-            <span className="badge badge--primary">{order.payment_status_label}</span>
-            {order.branch && <span className="badge badge--info">Fulfilled by {order.branch.name}</span>}
+          <div className="order-confirmation__pills">
+            <span className={`status-pill status-pill--${orderTone(order.status)}`}>Order: {order.status_label}</span>
+            <span className={`status-pill status-pill--${order.cod ? 'info' : paymentTone(order.payment_status)}`}>
+              Payment: {order.cod && order.payment_status !== 1 ? 'Cash on delivery' : paymentLabel(order.payment_status, order.payment_status_label)}
+            </span>
+            {order.branch && (
+              <span className="order-confirmation__chip">
+                <i className="las la-store" aria-hidden="true" /> Fulfilled by {order.branch.name}
+              </span>
+            )}
           </div>
+          {canPay && (
+            <Link href={`/checkout/payment/${order.order_number}`} className="btn btn--base order-confirmation__pay">
+              Pay {showAmount(order.total)} now
+            </Link>
+          )}
         </div>
 
         <div className="row gy-4 mt-4">
@@ -144,7 +183,7 @@ export function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
                 <br />
                 {address.address}
                 <br />
-                {[address.city, address.state].filter(Boolean).join(', ')}
+                {formatPlace(address.city, address.state)}
                 <br />
                 {address.country_name ?? 'Tanzania'}
                 <br />
@@ -157,14 +196,14 @@ export function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
 
           <div className="col-lg-4">
             <div className="checkout-information">
-              <h5 className="title mb-3">Summary</h5>
+              <h5 className="checkout-card__title">Summary</h5>
               <ul className="checkout-information__list">
                 <li>
                   <span>{t('Subtotal')}</span> <span>{showAmount(order.subtotal)}</span>
                 </li>
                 {order.total_tax > 0 && (
-                  <li>
-                    <span>{t('Tax')}</span> <span>{showAmount(order.total_tax)}</span>
+                  <li className="summary-vat">
+                    <span>VAT (included)</span> <span>{showAmount(order.total_tax)}</span>
                   </li>
                 )}
                 <li>
@@ -185,7 +224,10 @@ export function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
                 <span>{t('Total')}</span> <span>{showAmount(order.total)}</span>
               </div>
 
-              <Link href={`/track-order?order=${order.order_number}`} className="btn btn--base w-100 mt-3">
+              <Link
+                href={`/track-order?order=${order.order_number}`}
+                className={`btn w-100 mt-3 ${canPay ? 'btn-outline--base' : 'btn--base'}`}
+              >
                 Track this order
               </Link>
               <Link href="/products" className="btn btn-outline--base w-100 mt-2">

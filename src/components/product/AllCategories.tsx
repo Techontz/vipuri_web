@@ -61,26 +61,52 @@ export function AllCategories() {
                   </div>
                 </div>
               </div>
-              <div className="all-cat-card__body">
-                <div className="all-cat-block">
-                  <div className="all-cat-block__body">
-                    <div className="all-cat-block-slider">
-                      {category.subcategories.map((subcategory) => (
-                        <div className="all-cat-block-slider__slide" key={subcategory.id}>
-                          <Link className="cat-card" href={`/products?category=${subcategory.slug}`}>
-                            <img
-                              className="cat-card__thumb"
-                              src={imageUrl(subcategory.image ?? subcategory.icon)}
-                              alt={subcategory.name}
-                            />
-                            <span className="cat-card__name">{subcategory.name}</span>
-                          </Link>
-                        </div>
-                      ))}
+              {category.subcategories.length > 0 && (
+                <div className="all-cat-card__body">
+                  <div className="all-cat-block">
+                    <div className="all-cat-block__header">
+                      <Link className="all-cat-block__link" href={`/products?category=${category.slug}`}>
+                        Shop all {category.name}
+                        <i className="las la-arrow-right" aria-hidden="true" />
+                      </Link>
+                      {/* main.js allCatSlider() appends the slider's arrows here. */}
+                      <div className="all-cat-block-ctrl" />
+                    </div>
+                    <div className="all-cat-block__body">
+                      {/* Tablet and up: the theme's slider. */}
+                      <div className="all-cat-block-slider">
+                        {category.subcategories.map((subcategory) => (
+                          <div className="all-cat-block-slider__slide" key={subcategory.id}>
+                            <Link className="cat-card" href={`/products?category=${subcategory.slug}`}>
+                              <img
+                                className="cat-card__thumb"
+                                src={imageUrl(subcategory.image ?? subcategory.icon)}
+                                alt={subcategory.name}
+                              />
+                              <span className="cat-card__name">{subcategory.name}</span>
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Phone: every subcategory at once, two per row, nothing hidden off-screen. */}
+                      <ul className="all-cat-grid">
+                        {category.subcategories.map((subcategory) => (
+                          <li key={subcategory.id}>
+                            <Link className="cat-card" href={`/products?category=${subcategory.slug}`}>
+                              <img
+                                className="cat-card__thumb"
+                                src={imageUrl(subcategory.image ?? subcategory.icon)}
+                                alt={subcategory.name}
+                              />
+                              <span className="cat-card__name">{subcategory.name}</span>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           ))}
 

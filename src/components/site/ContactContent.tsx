@@ -9,11 +9,25 @@ import { useCaptcha } from '@/components/ui/CaptchaField';
 import { ApiError, apiWithMessage } from '@/lib/api';
 import { toastError, toastSuccess } from '@/lib/toast';
 
+/**
+ * A map embed worth rendering: a real Google Maps embed URL. The seeded link
+ * carried a placeholder place id (`0x0`), which renders an empty grey box, so
+ * that — and anything that is not an https URL — is treated as "no map".
+ */
+function usableMapLink(link: string | undefined): string | null {
+  const value = (link ?? '').trim();
+  if (!/^https:\/\//i.test(value)) return null;
+  if (/(%3A|:)0x0(?![0-9a-f])/i.test(value)) return null;
+
+  return value;
+}
+
 /** Contact page, mirroring `templates/basic/contact.blade.php`. */
 export function ContactContent() {
   const t = useTranslate();
   const settings = useSettings();
   const contact = settings?.contact ?? {};
+  const mapLink = usableMapLink(contact.google_map_link);
 
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [busy, setBusy] = useState(false);
@@ -55,7 +69,7 @@ export function ContactContent() {
               <div className="contact-info-list">
                 <div className="contact-info">
                   <div className="contact-info__icon">
-                    <i className="las la-envelope" />
+                    <i className="las la-envelope" aria-hidden="true" />
                   </div>
                   <div className="contact-info__content">
                     <h6 className="contact-info__title">{contact.email_title ?? 'Email Us'}</h6>
@@ -68,12 +82,12 @@ export function ContactContent() {
 
                 <div className="contact-info">
                   <div className="contact-info__icon">
-                    <i className="las la-phone" />
+                    <i className="las la-phone" aria-hidden="true" />
                   </div>
                   <div className="contact-info__content">
                     <h6 className="contact-info__title">{contact.number_title ?? 'Call Us'}</h6>
                     <p className="contact-info__desc">{contact.number_desc}</p>
-                    <a className="contact-info__link" href={`tel:${contact.number ?? ''}`}>
+                    <a className="contact-info__link" href={`tel:${(contact.number ?? '').replace(/[^\d+]/g, '')}`}>
                       {contact.number}
                     </a>
                   </div>
@@ -81,7 +95,7 @@ export function ContactContent() {
 
                 <div className="contact-info">
                   <div className="contact-info__icon">
-                    <i className="las la-map-marker-alt" />
+                    <i className="las la-map-marker-alt" aria-hidden="true" />
                   </div>
                   <div className="contact-info__content">
                     <h6 className="contact-info__title">{contact.address_title ?? 'Find Us'}</h6>
@@ -131,13 +145,12 @@ export function ContactContent() {
                 </form>
               </div>
 
-              {contact.google_map_link && (
-                <div className="contact-map mt-4">
+              {mapLink && (
+                <div className="contact-map-card mt-4">
                   <iframe
-                    src={contact.google_map_link}
+                    src={mapLink}
                     width="100%"
                     height="360"
-                    style={{ border: 0 }}
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
                     title="VIPURI location"

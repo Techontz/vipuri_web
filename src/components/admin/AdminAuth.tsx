@@ -9,6 +9,7 @@ import { useCaptcha, useCaptchaConfig } from '@/components/ui/CaptchaField';
 import { ApiError, apiWithMessage } from '@/lib/api';
 import { toastError, toastSuccess } from '@/lib/toast';
 import type { StaffMember } from '@/types';
+import { LOGO_SRC } from '@/lib/brand';
 
 /** Staff sign-in. */
 export function AdminLogin() {
@@ -47,7 +48,7 @@ export function AdminLogin() {
   return (
     <div className="admin-login">
       <div className="admin-login__card">
-        <img className="admin-login__logo" src="/assets/images/logo_icon/logo.svg" alt="VIPURI" />
+        <img className="admin-login__logo" src={LOGO_SRC} alt="VIPURI" />
         <h4 className="admin-login__title">Staff sign in</h4>
         <p className="admin-login__subtitle">VIPURI administration</p>
 
@@ -112,7 +113,7 @@ export function AdminForgotPassword() {
   return (
     <div className="admin-login">
       <div className="admin-login__card">
-        <img className="admin-login__logo" src="/assets/images/logo_icon/logo.svg" alt="VIPURI" />
+        <img className="admin-login__logo" src={LOGO_SRC} alt="VIPURI" />
         <h4 className="admin-login__title">Reset your password</h4>
         <p className="admin-login__subtitle">
           {stage === 'email' && 'We will e-mail you a six-digit code.'}

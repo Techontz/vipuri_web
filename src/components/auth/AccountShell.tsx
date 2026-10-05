@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { SocialAuth } from '@/components/auth/SocialAuth';
 import { useSettings } from '@/components/providers/AppProviders';
 import { api } from '@/lib/api';
+import { LOGO_SRC } from '@/lib/brand';
 
 type AccountCms = {
   title?: string;
@@ -25,12 +26,18 @@ export function AccountShell({
   heading,
   description,
   footer,
+  compact = false,
+  social = true,
   children,
 }: {
   section: 'login' | 'register';
   heading: string;
   description?: string;
   footer?: React.ReactNode;
+  /** Tighter spacing for long forms, so they still fit one screen. */
+  compact?: boolean;
+  /** Social sign-in buttons; off for password recovery, where they don't apply. */
+  social?: boolean;
   children: React.ReactNode;
 }) {
   const settings = useSettings();
@@ -40,7 +47,9 @@ export function AccountShell({
     let cancelled = false;
 
     // The account artwork and copy live in the CMS, exactly as in the source.
-    api<{ sections: Record<string, AccountCms> }>('/home', { cache: 'force-cache' })
+    // Not force-cached: that kept serving the copy fetched before an image
+    // was uploaded, so new artwork never appeared.
+    api<{ sections: Record<string, AccountCms> }>('/home')
       .then((data) => {
         if (!cancelled) setCms((data.sections?.[`${section}.content`] as AccountCms) ?? {});
       })
@@ -54,7 +63,7 @@ export function AccountShell({
   const background = cms.background_image;
 
   return (
-    <section className="account">
+    <section className={compact ? 'account account--compact' : 'account'}>
       <div
         className="account-thumb bg-img"
         data-background-image={background}
@@ -73,7 +82,7 @@ export function AccountShell({
       <div className="account-content">
         <div className="account-content__header">
           <Link href="/" className="account-logo">
-            <img src={settings?.site.logo ?? '/assets/images/logo_icon/logo.svg'} alt="VIPURI" />
+            <img src={settings?.site.logo ?? LOGO_SRC} alt="VIPURI" />
           </Link>
           {footer}
         </div>
@@ -85,7 +94,7 @@ export function AccountShell({
                 <h3 className="account-card__title">{heading}</h3>
                 <p className="account-card__desc">{description ?? cms.subtitle}</p>
               </div>
-              <SocialAuth />
+              {social && <SocialAuth />}
             </div>
             <div className="account-card__body">{children}</div>
           </div>

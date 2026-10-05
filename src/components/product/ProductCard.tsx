@@ -121,18 +121,21 @@ export function ProductCard({
   const category = product.categories?.[0]?.name ?? '';
   const href = `/product/${product.slug}`;
   const image = imageUrl(product.image_full ?? product.image);
+  // An unrated product shows no stars at all: five empty stars and "(0)"
+  // read as a bad rating rather than no rating yet.
+  const rated = (product.total_reviews ?? 0) > 0;
 
   if (showcase === 'popular') {
     return (
       <div className="product-card2">
         <div className="product-card2__header">
           <div className="product-card2__thumb">
-            <img src={image} alt="Product Image" />
+            <img src={image} alt={product.name} />
           </div>
         </div>
         <div className="product-card2__body">
-          <span className="product-card2__cat">{category}</span>
-          <Rating average={product.avg_rating} countLabel={product.avg_rating.toFixed(2)} />
+          {category && <span className="product-card2__cat">{category}</span>}
+          {rated && <Rating average={product.avg_rating} countLabel={String(product.total_reviews)} />}
           <h5 className="product-card2__title">
             <Link href={href}>{product.name}</Link>
           </h5>
@@ -149,16 +152,16 @@ export function ProductCard({
 
   if (showcase === 'special_offer_product') {
     return (
-      <div className="col-lg-4">
+      <div className="col-6 col-md-4">
         <div className="product-card4">
           <div className="product-card4__header">
             <div className="product-card4__thumb">
-              <img src={image} alt="Product Image" />
+              <img src={image} alt={product.name} />
             </div>
           </div>
           <div className="product-card4__body">
-            <span className="product-card4__cat">{category}</span>
-            <Rating average={product.avg_rating} countLabel={product.avg_rating.toFixed(2)} />
+            {category && <span className="product-card4__cat">{category}</span>}
+            {rated && <Rating average={product.avg_rating} countLabel={String(product.total_reviews)} />}
             <h5 className="product-card4__title">
               <Link href={href} tabIndex={0}>
                 {product.name}
@@ -183,12 +186,12 @@ export function ProductCard({
     return (
       <div className="product-card3">
         <div className="product-card3__thumb">
-          <img src={image} alt="productImage" />
+          <img src={image} alt={product.name} />
         </div>
         <div className="product-card3__content">
           <div className="product-card3__content-body">
             <div className="product-card3__action">
-              <Rating average={product.avg_rating} total={product.total_reviews} />
+              {rated && <Rating average={product.avg_rating} total={product.total_reviews} />}
               {discountLabel && <span className="product-card3__discount">{discountLabel} Off</span>}
             </div>
             <h5 className="product-card3__title">
@@ -217,13 +220,13 @@ export function ProductCard({
               </li>
             </ul>
             <figure className="image">
-              <img src={image} alt="image" />
+              <img src={image} alt={product.name} />
             </figure>
           </div>
           <div className="lower-content">
             <div className="lower-content__body">
-              <span className="text">{category}</span>
-              <Rating average={product.avg_rating} countLabel={product.avg_rating.toFixed(2)} />
+              {category && <span className="text">{category}</span>}
+              {rated && <Rating average={product.avg_rating} countLabel={String(product.total_reviews)} />}
               <h4>
                 <Link href={href}>{product.name}</Link>
               </h4>
@@ -248,8 +251,8 @@ export function ProductCard({
           <img src={image} alt={product.name} />
         </div>
         <div className="lower-content">
-          <span className="text">{category}</span>
-          <Rating average={product.avg_rating} countLabel={product.avg_rating.toFixed(2)} />
+          {category && <span className="text">{category}</span>}
+          {rated && <Rating average={product.avg_rating} countLabel={String(product.total_reviews)} />}
           <h4>
             <Link href={href}>{product.name}</Link>
           </h4>

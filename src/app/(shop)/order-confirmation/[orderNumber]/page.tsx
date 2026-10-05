@@ -9,7 +9,7 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
   const { orderNumber } = await params;
   return (
     <>
-      <Breadcrumb title={`Order Confirmation - ${orderNumber}`} />
+      <Breadcrumb title="Order placed" />
       <OrderConfirmation orderNumber={orderNumber} />
     </>
   );

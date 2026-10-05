@@ -21,17 +21,19 @@ function PasswordField({
   value,
   onChange,
   autoComplete = 'current-password',
+  className = 'col-sm-12',
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
   autoComplete?: string;
+  className?: string;
 }) {
   const [visible, setVisible] = useState(false);
 
   return (
-    <div className="col-sm-12 form-group">
+    <div className={`${className} form-group`}>
       <label htmlFor={id} className="form--label">
         {label}
       </label>
@@ -181,6 +183,11 @@ export function RegisterForm() {
   const update = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) =>
     setForm((current) => ({ ...current, [key]: event.target.value }));
 
+  // The policy pages are CMS-managed; find them by slug, falling back to the
+  // seeded slugs so the links work before settings have loaded.
+  const policySlug = (match: string, fallback: string) =>
+    settings?.policy_pages?.find((page) => page.slug.includes(match))?.slug ?? fallback;
+
   if (settings && !settings.site.registration_enabled) {
     return (
       <AccountShell section="register" heading="Registration is closed">
@@ -229,6 +236,7 @@ export function RegisterForm() {
     <AccountShell
       section="register"
       heading="Create Your Account"
+      compact
       footer={
         <p className="account-info">
           Already registered? <Link href="/login">{t('Login')}</Link>
@@ -237,15 +245,15 @@ export function RegisterForm() {
     >
       <form className="account-form" onSubmit={submit}>
         <div className="row">
-          <div className="col-sm-6 form-group">
+          <div className="col-md-6 form-group">
             <label className="form--label">{t('First name')}</label>
             <input className="form-control form--control" required value={form.firstname} onChange={update('firstname')} />
           </div>
-          <div className="col-sm-6 form-group">
+          <div className="col-md-6 form-group">
             <label className="form--label">{t('Last name')}</label>
             <input className="form-control form--control" required value={form.lastname} onChange={update('lastname')} />
           </div>
-          <div className="col-sm-12 form-group">
+          <div className="col-md-6 form-group">
             <label className="form--label">{t('Username')}</label>
             <input
               className="form-control form--control"
@@ -256,7 +264,7 @@ export function RegisterForm() {
               onChange={update('username')}
             />
           </div>
-          <div className="col-sm-12 form-group">
+          <div className="col-md-6 form-group">
             <label className="form--label">E-mail</label>
             <input
               className="form-control form--control"
@@ -281,6 +289,7 @@ export function RegisterForm() {
             value={form.password}
             onChange={(value) => setForm((current) => ({ ...current, password: value }))}
             autoComplete="new-password"
+            className="col-md-6"
           />
           <PasswordField
             id="reg-password-confirm"
@@ -288,10 +297,11 @@ export function RegisterForm() {
             value={form.password_confirmation}
             onChange={(value) => setForm((current) => ({ ...current, password_confirmation: value }))}
             autoComplete="new-password"
+            className="col-md-6"
           />
 
           <div className="col-sm-12 form-group">
-            <div className="form--check">
+            <div className="form--check account-form__agree">
               <input
                 className="form-check-input"
                 type="checkbox"
@@ -301,7 +311,14 @@ export function RegisterForm() {
                 required
               />
               <label className="form-check-label" htmlFor="agree">
-                I agree to the VIPURI terms of service and privacy policy
+                I agree to the VIPURI{' '}
+                <Link href={`/policy/${policySlug('terms', 'terms-of-service')}`} target="_blank">
+                  terms of service
+                </Link>{' '}
+                and{' '}
+                <Link href={`/policy/${policySlug('privacy', 'privacy-policy')}`} target="_blank">
+                  privacy policy
+                </Link>
               </label>
             </div>
           </div>
@@ -371,6 +388,7 @@ export function ForgotPasswordForm() {
   return (
     <AccountShell
       section="login"
+      social={false}
       heading="Reset your password"
       description={
         stage === 'email'
@@ -470,7 +488,12 @@ export function ResetPasswordForm() {
   };
 
   return (
-    <AccountShell section="login" heading="Choose a new password" description={`Resetting the password for ${email}`}>
+    <AccountShell
+      section="login"
+      social={false}
+      heading="Choose a new password"
+      description={`Resetting the password for ${email}`}
+    >
       <form className="account-form" onSubmit={submit}>
         <div className="row">
           <PasswordField

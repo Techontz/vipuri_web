@@ -4,6 +4,8 @@ import Script from 'next/script';
 import { AppProviders } from '@/components/providers/AppProviders';
 import { getSettings } from '@/lib/server';
 import { hexToHslParts } from '@/lib/format';
+import { APPLE_ICON_SRC, ICON_SRC } from '@/lib/brand';
+import { SITE_URL } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,8 +21,11 @@ export async function generateMetadata(): Promise<Metadata> {
     description:
       'VIPURI supplies genuine auto parts, spare components and vehicle accessories across Tanzania, ' +
       'with branches in Dar es Salaam, Arusha, Mwanza and Dodoma.',
-    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://127.0.0.1:3000'),
-    icons: settings?.site.favicon ? { icon: settings.site.favicon } : { icon: '/assets/images/logo_icon/favicon.svg' },
+    metadataBase: new URL(SITE_URL),
+    icons: {
+      icon: settings?.site.favicon ?? ICON_SRC,
+      apple: APPLE_ICON_SRC,
+    },
   };
 }
 

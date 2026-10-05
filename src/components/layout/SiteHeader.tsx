@@ -12,15 +12,7 @@ import { CartSidebar } from '@/components/layout/CartSidebar';
 import { api } from '@/lib/api';
 import { imageUrl } from '@/lib/format';
 import type { CategoryNode } from '@/types';
-
-/**
- * The VIPURI logo, served straight from `public/`. The space in the filename is
- * percent-encoded because this is a URL, not a module import.
- *
- * Used when the operator has not uploaded a logo in the CMS, which is still
- * what `settings.site.logo` provides when they have.
- */
-const LOGO_SRC = '/assets/images/logo_icon/vipuri%20logo.png';
+import { LOGO_SRC } from '@/lib/brand';
 
 /**
  * Storefront header. The markup mirrors the purchased theme's
@@ -114,7 +106,7 @@ export function SiteHeader() {
               {categories.map((category, index) => (
                 <li className="category-block-list__item" key={category.id}>
                   <div className="category-block-list__link">
-                    <img className="icon" src={imageUrl(category.icon)} alt="Toggle" />
+                    <img className="icon category-thumb" src={imageUrl(category.image ?? category.icon)} alt="" loading="lazy" />
                     <Link className="link" href={`/products?category=${category.slug}`}>
                       {category.name}
                     </Link>
@@ -134,7 +126,7 @@ export function SiteHeader() {
                     {category.subcategories.map((sub, subIndex) => (
                       <div className="subcategory-block" key={sub.id}>
                         <div className="subcategory-block__toggle">
-                          <img className="icon" src={imageUrl(sub.icon)} alt="image" />
+                          <img className="icon category-thumb" src={imageUrl(sub.image ?? sub.icon)} alt="" loading="lazy" />
                           <Link className="link" href={`/products?category=${sub.slug}`}>
                             {sub.name}
                           </Link>

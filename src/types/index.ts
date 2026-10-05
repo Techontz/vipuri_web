@@ -436,6 +436,15 @@ export type HomePayload = {
   top_categories: { id: number; name: string; slug: string; icon: string | null; image: string | null }[];
   popular_brands: BrandSummary[];
   latest_products: ProductCard[];
+  /** Top-level departments for the Latest Products tabs, busiest first; empty ones fill the menu. */
+  latest_by_category?: {
+    id: number;
+    name: string;
+    slug: string;
+    image: string | null;
+    products_count: number;
+    products: ProductCard[];
+  }[];
   top_deals: ProductCard[];
   limited_stock: ProductCard[];
   featured_products: ProductCard[];

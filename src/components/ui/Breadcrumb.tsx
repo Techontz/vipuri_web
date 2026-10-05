@@ -10,7 +10,8 @@ import { useSettings } from '@/components/providers/AppProviders';
  * The original renders exactly two crumbs — Home and the page title — so this
  * takes no trail. The banner image comes from the `page_banner.content` CMS
  * section and is passed through `data-background-image`, which the theme's own
- * `.bg-img` handler in main.js turns into the background.
+ * `.bg-img` handler in main.js turns into the background. A navy wash
+ * (vipuri-site.css) keeps the white title legible on any photo.
  */
 export function Breadcrumb({ title }: { title: string }) {
   const settings = useSettings();
@@ -23,18 +24,20 @@ export function Breadcrumb({ title }: { title: string }) {
       style={image ? { backgroundImage: `url(${image})` } : undefined}
     >
       <div className="container">
-        <h3 className="page-banner__title">{title}</h3>
-        <ul className="breadcrumb custom--breadcrumb">
-          <li className="breadcrumb-item">
-            <Link href="/">
-              <i className="las la-home" />
-              Home
-            </Link>
-          </li>
-          <li className="breadcrumb-item" aria-current="page">
-            {title}
-          </li>
-        </ul>
+        <h1 className="page-banner__title h3">{title}</h1>
+        <nav aria-label="Breadcrumb">
+          <ul className="breadcrumb custom--breadcrumb">
+            <li className="breadcrumb-item">
+              <Link href="/">
+                <i className="las la-home" aria-hidden="true" />
+                Home
+              </Link>
+            </li>
+            <li className="breadcrumb-item breadcrumb-item--current" aria-current="page" title={title}>
+              <span>{title}</span>
+            </li>
+          </ul>
+        </nav>
       </div>
     </section>
   );

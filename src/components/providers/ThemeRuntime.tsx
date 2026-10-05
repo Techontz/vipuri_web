@@ -59,6 +59,31 @@ function ThemeRuntimeInner() {
     };
   }, [pathname, searchParams]);
 
+  // Keep `--header-height` in step with the header's real height.
+  //
+  // main.js measures the header once per init(). Coming from the full-bleed
+  // login/register screens, the storefront stylesheets are still loading at
+  // that moment, so it measured an unstyled, far taller header and
+  // `.page-wrapper` was pushed down by hundreds of pixels of blank space.
+  // Re-measuring whenever the header resizes corrects that as soon as the
+  // styles land. The fixed (scrolled) header hides its top bar, so it is not
+  // measured — the offset belongs to the header at rest, as in the original.
+  useEffect(() => {
+    const header = document.querySelector<HTMLElement>('.header');
+    if (!header || typeof ResizeObserver === 'undefined') return;
+
+    const measure = () => {
+      if (header.classList.contains('fixed-header')) return;
+      document.documentElement.style.setProperty('--header-height', `${header.offsetHeight}px`);
+    };
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    measure();
+
+    return () => observer.disconnect();
+  }, [pathname]);
+
   // Close any open offcanvas/modal when the route changes, otherwise the
   // backdrop survives navigation and blocks the page.
   useEffect(() => {

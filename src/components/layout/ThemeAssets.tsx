@@ -21,6 +21,10 @@ export function ThemeAssets() {
       <link rel="stylesheet" href="/assets/templates/basic/css/main.css" />
       <link rel="stylesheet" href="/assets/templates/basic/css/custom.css" />
       <link rel="stylesheet" href="/assets/vipuri.css" />
+      <link rel="stylesheet" href="/assets/vipuri-site.css" />
+      <link rel="stylesheet" href="/assets/vipuri-catalog.css" />
+      <link rel="stylesheet" href="/assets/vipuri-shop.css" />
+      <link rel="stylesheet" href="/assets/vipuri-account.css" />
 
       <ThemeRuntime />
 

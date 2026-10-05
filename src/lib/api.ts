@@ -1,6 +1,7 @@
+import { API_URL, BACKEND_URL } from '@/lib/env';
 import type { ApiEnvelope } from '@/types';
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000/api/v1';
+export { API_URL };
 
 /**
  * The API host, without the `/api/v1` suffix.
@@ -9,9 +10,7 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000
  * than XHR — social sign-in redirects and gateway returns.
  */
 export function backendUrl(): string {
-  const configured = process.env.NEXT_PUBLIC_BACKEND_URL;
-
-  return (configured ?? API_URL.replace(/\/api\/v\d+\/?$/, '')).replace(/\/$/, '');
+  return BACKEND_URL;
 }
 
 export const CART_TOKEN_KEY = 'vipuri_cart_token';

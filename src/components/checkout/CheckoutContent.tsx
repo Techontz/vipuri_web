@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { ShopEmptyState } from '@/components/cart/ShopEmptyState';
 import { useTranslate } from '@/components/providers/LanguageProvider';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useCart } from '@/components/providers/CartProvider';
@@ -67,6 +68,8 @@ export function CheckoutContent() {
 
   const [payload, setPayload] = useState<CheckoutPayload | null>(null);
   const [rates, setRates] = useState<ShippingRate[]>([]);
+  // The zone the loaded `rates` belong to, so a stale list is never trusted.
+  const [ratesZone, setRatesZone] = useState<string | null>(null);
   const [zoneId, setZoneId] = useState('');
   const [form, setForm] = useState(EMPTY_FORM);
   const [cod, setCod] = useState(false);
@@ -129,7 +132,9 @@ export function CheckoutContent() {
       auth: 'user',
     })
       .then((data) => {
-        if (!cancelled) setRates(data.rates ?? []);
+        if (cancelled) return;
+        setRates(data.rates ?? []);
+        setRatesZone(zoneId);
       })
       .catch(() => undefined);
 
@@ -138,14 +143,27 @@ export function CheckoutContent() {
     };
   }, [zoneId, summary.subtotal]);
 
+  // Options and prices differ by region, so the zone comes first: listing
+  // every zone's rates at once read as one long, confusing price list.
+  const needsZone = (payload?.shipping_zones.length ?? 0) > 0 && !zoneId;
+
+  // The cart remembers the last rate picked, even one from another zone. Only
+  // honour it while it is one of the options listed for the current zone;
+  // otherwise the customer must pick again (the API has no "clear rate" call).
+  const ratesReady = ratesZone === zoneId;
+  const rateValid =
+    !needsZone && ratesReady && summary.shipping_rate_id !== null && rates.some((rate) => rate.id === summary.shipping_rate_id);
+  const shippingCharge = rateValid ? summary.shipping_charge : 0;
+  const payable = rateValid ? summary.payable : Math.max(0, summary.payable - summary.shipping_charge);
+
   const update = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((current) => ({ ...current, [key]: event.target.value }));
 
   const placeOrder = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!summary.shipping_rate_id) {
-      toastError('Please choose a delivery option');
+    if (!rateValid) {
+      toastError(needsZone ? 'Please choose your delivery zone' : 'Please choose a delivery option');
       return;
     }
 
@@ -175,17 +193,13 @@ export function CheckoutContent() {
 
   if (!cartLoading && items.length === 0) {
     return (
-      <section className="my-120">
+      <section className="my-120 checkout checkout--empty">
         <div className="container">
-          <div className="empty-message">
-            <div className="empty-message-icon">
-              <img src="/assets/images/empty_cart.png" alt="img" />
-            </div>
-            <p className="empty-message-text">{t('Your cart is empty')}</p>
-            <Link href="/products" className="btn btn-outline--base btn--sm mt-3">
-              View Products
-            </Link>
-          </div>
+          <ShopEmptyState
+            icon="las la-shopping-cart"
+            title="Your cart is empty"
+            description="Add parts to your cart first, then come back here to check out."
+          />
         </div>
       </section>
     );
@@ -336,7 +350,7 @@ export function CheckoutContent() {
                       value={zoneId}
                       onChange={(event) => setZoneId(event.target.value)}
                     >
-                      <option value="">All zones</option>
+                      <option value="">Choose where we are delivering to</option>
                       {payload.shipping_zones.map((zone) => (
                         <option value={zone.id} key={zone.id}>
                           {zone.name}
@@ -346,9 +360,22 @@ export function CheckoutContent() {
                   </div>
                 )}
 
-                {rates.length === 0 ? (
+                {needsZone ? (
+                  <p className="mb-0 shipping-rate-hint">
+                    <i className="las la-map-marker-alt" /> Choose your delivery zone to see the delivery options and
+                    their prices.
+                  </p>
+                ) : !ratesReady ? (
+                  <div className="vp-skeleton vp-skeleton--line" />
+                ) : rates.length === 0 ? (
                   <p className="mb-0">No delivery option is available for this basket yet.</p>
                 ) : (
+                  <>
+                  {!rateValid && (
+                    <p className="shipping-rate-hint mb-2">
+                      <i className="las la-hand-pointer" /> Pick a delivery option for this zone.
+                    </p>
+                  )}
                   <ul className="shipping-rate-list">
                     {rates.map((rate) => (
                       <li key={rate.id}>
@@ -357,13 +384,13 @@ export function CheckoutContent() {
                             className="form-check-input"
                             type="radio"
                             name="shipping_rate"
-                            checked={summary.shipping_rate_id === rate.id}
+                            checked={rateValid && summary.shipping_rate_id === rate.id}
                             onChange={() => void chooseShippingRate(rate.id)}
                           />
                           <span className="form-check-label flex-grow-1">
                             <strong>{rate.method.name}</strong>
                             <span className="d-block" style={{ fontSize: 13 }}>
-                              {rate.zone.name}
+                              {rate.method.description ? `${rate.method.description} ` : ''}
                               {rate.expected_delivery_days > 0
                                 ? ` · about ${rate.expected_delivery_days} day${rate.expected_delivery_days === 1 ? '' : 's'}`
                                 : ''}
@@ -374,6 +401,7 @@ export function CheckoutContent() {
                       </li>
                     ))}
                   </ul>
+                  </>
                 )}
               </div>
 
@@ -410,16 +438,21 @@ export function CheckoutContent() {
                 </div>
               )}
 
-              <button className="btn btn--base w-100 mt-4" type="submit" disabled={submitting}>
+              <button className="btn btn--base w-100 mt-4" type="submit" disabled={submitting || !rateValid}>
                 {submitting ? 'Placing your order…' : cod ? 'Place order' : 'Continue to payment'}
               </button>
+              {!rateValid && (
+                <p className="checkout-submit-hint">
+                  {needsZone ? 'Choose your delivery zone' : 'Choose a delivery option'} to continue.
+                </p>
+              )}
             </form>
           </div>
 
           {/* --------------------------- Summary --------------------------- */}
           <div className="col-lg-5">
             <div className="checkout-information">
-              <h5 className="title mb-3">Your order</h5>
+              <h5 className="checkout-card__title">Your order</h5>
 
               <ul className="checkout-item-list">
                 {items.map((item) => (
@@ -446,13 +479,15 @@ export function CheckoutContent() {
                   <span>{t('Subtotal')}</span> <span>{showAmount(summary.subtotal)}</span>
                 </li>
                 {summary.total_tax > 0 && (
-                  <li>
-                    <span>{t('Tax')}</span> <span>{showAmount(summary.total_tax)}</span>
+                  <li className="summary-vat">
+                    <span>VAT (included)</span> <span>{showAmount(summary.total_tax)}</span>
                   </li>
                 )}
                 <li>
                   <span>Delivery</span>{' '}
-                  <span>{summary.shipping_charge > 0 ? showAmount(summary.shipping_charge) : '—'}</span>
+                  <span>
+                    {!rateValid ? 'Choose an option' : shippingCharge > 0 ? showAmount(shippingCharge) : 'Free'}
+                  </span>
                 </li>
                 {summary.coupon && (
                   <li>
@@ -465,7 +500,7 @@ export function CheckoutContent() {
               </ul>
 
               <div className="checkout-information__total">
-                <span>{t('Total')}</span> <span>{showAmount(summary.payable)}</span>
+                <span>{t('Total')}</span> <span>{showAmount(payable)}</span>
               </div>
             </div>
           </div>

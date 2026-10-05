@@ -90,6 +90,25 @@ export function ProductDetails({
         buyable: product.inventory.is_buyable,
       };
 
+  // Only state what the API knows: exact counts only when the merchandiser
+  // chose to display them.
+  const stock = (() => {
+    if (product.product_type === 'external') {
+      return { tone: 'info', icon: 'las la-external-link-alt', title: 'Sold by a partner', note: 'Bought on the partner site.' };
+    }
+    if (!inventory.buyable) {
+      return { tone: 'danger', icon: 'las la-times-circle', title: 'Out of stock', note: 'Add it to your wishlist and check back soon.' };
+    }
+    if (inventory.track && inventory.stock <= 0) {
+      return { tone: 'warning', icon: 'las la-clock', title: 'Available to order', note: 'We will source it for you after you order.' };
+    }
+    const count =
+      inventory.track && inventory.show && inventory.stock > 0
+        ? `${inventory.stock}${product.inventory.unit ? ` ${product.inventory.unit}` : ''} available.`
+        : 'Ready to dispatch from a VIPURI branch.';
+    return { tone: 'success', icon: 'las la-check-circle', title: 'In stock', note: count };
+  })();
+
   const maxQuantity = selectedVariation?.max_cart_quantity || product.max_cart_quantity || undefined;
   const minQuantity = selectedVariation?.min_cart_quantity || product.min_cart_quantity || 1;
 
@@ -166,7 +185,9 @@ export function ProductDetails({
                           selectedVariation={selectedVariation}
                         />
                       </h3>
-                      <Rating average={product.avg_rating} total={product.total_reviews} />
+                      {product.total_reviews > 0 && (
+                        <Rating average={product.avg_rating} total={product.total_reviews} />
+                      )}
                     </div>
 
                     <ul className="product-details-info">
@@ -180,12 +201,11 @@ export function ProductDetails({
                       {product.categories.length > 0 && (
                         <li className="product-details-info__item">
                           <span className="label">{t('Categories')}</span>
-                          <span className="value">
-                            {product.categories.map((cat, index) => (
-                              <span key={cat.id}>
-                                <Link href={`/products?category=${cat.slug}`}>{cat.name}</Link>
-                                {index < product.categories.length - 1 ? ', ' : ''}
-                              </span>
+                          <span className="value pd-cats">
+                            {product.categories.map((cat) => (
+                              <Link href={`/products?category=${cat.slug}`} key={cat.id}>
+                                {cat.name}
+                              </Link>
                             ))}
                           </span>
                         </li>
@@ -216,21 +236,6 @@ export function ProductDetails({
                         </li>
                       )}
 
-                      {inventory.available && (
-                        <li className="product-details-info__item">
-                          <span className="label">Availability</span>
-                          <span className="value">
-                            {inventory.buyable ? (
-                              <>
-                                In Stock
-                                {inventory.show && inventory.track ? ` (${inventory.stock} ${product.inventory.unit ?? ''})` : ''}
-                              </>
-                            ) : (
-                              'Out of Stock'
-                            )}
-                          </span>
-                        </li>
-                      )}
                     </ul>
 
                     {/* ------------------------ Attributes ------------------ */}
@@ -395,14 +400,53 @@ export function ProductDetails({
                             </button>
                           </li>
                           <li className="product-details-meta__item">
-                            <button type="submit" className="btn btn--base qtyAddCartBtn" disabled={busy || !inventory.buyable}>
-                              {inventory.buyable ? (busy ? 'Adding…' : 'Add To Cart') : 'Out of Stock'}
+                            <button
+                              type="submit"
+                              className="btn btn--base qtyAddCartBtn pd-add-btn"
+                              disabled={busy || !inventory.buyable}
+                            >
+                              <i className="las la-shopping-cart" aria-hidden="true" />{' '}
+                              {inventory.buyable ? (busy ? 'Adding…' : 'Add to cart') : 'Out of stock'}
                             </button>
                           </li>
                         </ul>
                       )
                     )}
                   </form>
+
+                  {/* ----------------- Stock, delivery, payment -------------- */}
+                  <ul className="pd-assurance">
+                    <li className={`pd-assurance__item pd-assurance__item--${stock.tone}`}>
+                      <span className="pd-assurance__icon" aria-hidden="true">
+                        <i className={stock.icon} />
+                      </span>
+                      <span className="pd-assurance__text">
+                        <strong>{stock.title}</strong>
+                        <span>{stock.note}</span>
+                      </span>
+                    </li>
+                    <li className="pd-assurance__item">
+                      <span className="pd-assurance__icon" aria-hidden="true">
+                        <i className="las la-truck" />
+                      </span>
+                      <span className="pd-assurance__text">
+                        <strong>Delivery across Tanzania</strong>
+                        <span>Choose your delivery zone at checkout to see the options and their prices.</span>
+                      </span>
+                    </li>
+                    <li className="pd-assurance__item">
+                      <span className="pd-assurance__icon" aria-hidden="true">
+                        <i className="las la-mobile" />
+                      </span>
+                      <span className="pd-assurance__text">
+                        <strong>Easy payment</strong>
+                        <span>
+                          Mobile money or bank transfer{settings?.site.has_cod ? ', or cash on delivery' : ''}.
+                          {settings?.company?.phone ? ` Questions? Call ${settings.company.phone}.` : ''}
+                        </span>
+                      </span>
+                    </li>
+                  </ul>
 
                   {/* ------------------ Branch availability ---------------- */}
                   {product.branch_availability && product.branch_availability.length > 0 && (
@@ -431,7 +475,7 @@ export function ProductDetails({
           </div>
 
           {/* ---------------------------- Tabs --------------------------- */}
-          <nav className="nav-horizontal mb-4" role="tablist">
+          <nav className="nav-horizontal pd-tabs mb-4" role="tablist">
             <ul className="nav-horizontal-menu">
               <li className="nav-horizontal-menu__item">
                 <button
@@ -501,11 +545,8 @@ export function ProductDetails({
               aria-labelledby="#pills-description-tab"
             >
               <div className="product-details-card">
-                <div className="product-details-card__header">
-                  <h5 className="product-details-card__title">{t('Description')}</h5>
-                </div>
                 <div
-                  className="product-details-card__body"
+                  className="product-details-card__body pd-description"
                   dangerouslySetInnerHTML={{ __html: product.description ?? '' }}
                 />
               </div>
@@ -561,7 +602,7 @@ export function ProductDetails({
                 <h2 className="section-heading__title">You may also like</h2>
               </div>
             </div>
-            <div className="row gy-4">
+            <div className="row gy-4 shop-grid shop-grid--related">
               {product.up_sells.map((item) => (
                 <div className="col-xsm-6 col-sm-6 col-lg-4 col-xxl-3" key={item.id}>
                   <ProductCard product={item} showcase="popular" />
@@ -581,7 +622,7 @@ export function ProductDetails({
                 <h2 className="section-heading__title">Frequently bought together</h2>
               </div>
             </div>
-            <div className="row gy-4">
+            <div className="row gy-4 shop-grid shop-grid--related">
               {product.cross_sells.map((item) => (
                 <div className="col-xsm-6 col-sm-6 col-lg-4 col-xxl-3" key={item.id}>
                   <ProductCard product={item} showcase="popular" />
@@ -601,7 +642,7 @@ export function ProductDetails({
                 <h2 className="section-heading__title">{t('Related Products')}</h2>
               </div>
             </div>
-            <div className="row gy-4">
+            <div className="row gy-4 shop-grid shop-grid--related">
               {relatedProducts.slice(0, 8).map((item) => (
                 <div className="col-xsm-6 col-sm-6 col-lg-4 col-xxl-3" key={item.id}>
                   <ProductCard product={item} showcase="popular" />

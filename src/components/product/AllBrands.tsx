@@ -63,19 +63,19 @@ export function AllBrands() {
             <span className="section-heading__tagline">{heading.tag}</span>
             <h2 className="section-heading__title">{heading.title}</h2>
           </div>
-          <div className="row gy-4">
+          <div className="row g-3 g-md-4 justify-content-center">
             {brands === null &&
               Array.from({ length: 12 }).map((_, index) => (
-                <div className="col-xl-2 col-md-3 col-4" key={index}>
+                <div className="col-6 col-sm-4 col-md-3 col-xl-2" key={index}>
                   <div className="vp-skeleton" style={{ height: 120 }} />
                 </div>
               ))}
 
             {brands?.map((brand) => (
-              <div className="col-xl-2 col-md-3 col-4" key={brand.id}>
+              <div className="col-6 col-sm-4 col-md-3 col-xl-2" key={brand.id}>
                 <Link className="brand-item" href={`/products?brand_slug=${brand.slug}`}>
                   <div className="brand-item__logo">
-                    <img src={imageUrl(brand.logo)} alt="brand image" />
+                    <img src={imageUrl(brand.logo)} alt={brand.name} />
                   </div>
                   <span className="brand-item__name">{brand.name}</span>
                 </Link>

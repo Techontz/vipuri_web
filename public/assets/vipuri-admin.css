@@ -1496,3 +1496,12 @@ table.dataTable thead th {
   color: #fff;
   text-decoration: none;
 }
+
+/* Sidebar logo
+   The real VIPURI lockup is about 3:1; at the sidebar's full width it came
+   out 72px tall. This keeps it to a header-sized strip. */
+.sidebar__logo .sidebar__main-logo img {
+  max-height: 44px;
+  width: auto;
+  object-fit: contain;
+}

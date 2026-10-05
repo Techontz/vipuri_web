@@ -1,16 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { EmptyMessage } from '@/components/ui/EmptyMessage';
 import { Pagination } from '@/components/ui/Pagination';
-import { Rating } from '@/components/product/Rating';
 import { useTranslate } from '@/components/providers/LanguageProvider';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { ApiError, api, apiWithMessage, downloadFile } from '@/lib/api';
 import { formatDate, imageUrl, showAmount } from '@/lib/format';
 import { toastError, toastSuccess } from '@/lib/toast';
+import { formatPlace, orderTone, paymentLabel, paymentTone, ticketLabel, ticketTone } from '@/lib/status';
 import type { Order, Pagination as PaginationMeta } from '@/types';
 
 /* ------------------------------- Dashboard -------------------------------- */
@@ -22,6 +21,59 @@ type DashboardPayload = {
   wishlist_count: number;
   unread_notifications: number;
 };
+
+/** Page title strip shared by every account screen. */
+function AccountHeading({ title, desc, action }: { title: string; desc?: string; action?: React.ReactNode }) {
+  return (
+    <div className="dashboard-header">
+      <div>
+        <h4 className="dashboard-header__title">{title}</h4>
+        {desc && <p className="dashboard-header__desc">{desc}</p>}
+      </div>
+      {action && <div className="dashboard-header__action">{action}</div>}
+    </div>
+  );
+}
+
+/** Street line plus place, without repeating a city the street line already names. */
+function addressLine(street: string | null | undefined, place: string): string {
+  const line = (street ?? '').trim();
+  if (!place || line.toLowerCase().includes(place.toLowerCase())) return line;
+  return [line, place].filter(Boolean).join(', ');
+}
+
+/** "← My orders" link above a detail page's heading. */
+function BackLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link href={href} className="account-back">
+      <i className="las la-arrow-left" /> {label}
+    </Link>
+  );
+}
+
+/** Centered empty state used inside account cards. */
+function AccountEmpty({
+  icon,
+  title,
+  desc,
+  action,
+}: {
+  icon: string;
+  title: string;
+  desc?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="account-empty">
+      <span className="account-empty__icon">
+        <i className={icon} />
+      </span>
+      <h6 className="account-empty__title">{title}</h6>
+      {desc && <p className="account-empty__desc">{desc}</p>}
+      {action}
+    </div>
+  );
+}
 
 export function AccountDashboard() {
   const t = useTranslate();
@@ -35,23 +87,53 @@ export function AccountDashboard() {
   }, []);
 
   const tiles = [
-    { label: 'Total orders', value: data?.widgets.order_total ?? 0, icon: 'las la-shopping-bag' },
-    { label: 'Pending', value: data?.widgets.order_pending ?? 0, icon: 'las la-hourglass-half' },
-    { label: 'Delivered', value: data?.widgets.order_delivered ?? 0, icon: 'las la-check-circle' },
-    { label: 'Cancelled', value: data?.widgets.order_cancelled ?? 0, icon: 'las la-times-circle' },
+    { label: 'Total orders', value: data?.widgets.order_total ?? 0, icon: 'las la-shopping-bag', tone: 'base' },
+    { label: 'Pending', value: data?.widgets.order_pending ?? 0, icon: 'las la-hourglass-half', tone: 'warning' },
+    { label: 'Delivered', value: data?.widgets.order_delivered ?? 0, icon: 'las la-check-circle', tone: 'success' },
+    { label: 'Cancelled', value: data?.widgets.order_cancelled ?? 0, icon: 'las la-times-circle', tone: 'danger' },
   ];
 
+  const shortcuts = [
+    { href: '/user/orders', label: 'My orders', desc: 'Track and review purchases', icon: 'las la-box' },
+    { href: '/wishlist', label: 'Saved products', desc: `${data?.wishlist_count ?? 0} item(s) saved`, icon: 'las la-heart' },
+    { href: '/user/addresses', label: 'Addresses', desc: 'Where we deliver to you', icon: 'las la-map-marker-alt' },
+    {
+      href: '/user/notifications',
+      label: 'Notifications',
+      desc: data?.unread_notifications ? `${data.unread_notifications} unread` : 'You are all caught up',
+      icon: 'las la-bell',
+    },
+  ];
+
+  const orders = data?.recent_orders ?? [];
+
   return (
-    <>
-      <div className="dashboard-header mb-4">
-        <h4 className="mb-1">Karibu, {user?.firstname || user?.username}</h4>
-        <p className="mb-0">Here is what is happening with your VIPURI account.</p>
+    <div className="account-stack">
+      <div className="account-hero">
+        <div className="account-hero__content">
+          <span className="account-hero__eyebrow">My VIPURI account</span>
+          <h3 className="account-hero__title">Karibu, {user?.firstname || user?.username}</h3>
+          <p className="account-hero__desc">Track your orders, manage your addresses and keep every drive running smoothly.</p>
+          <div className="account-hero__actions">
+            <Link href="/products" className="btn btn--base">
+              <i className="las la-shopping-cart" /> Continue shopping
+            </Link>
+            <Link href="/track-order" className="btn account-hero__btn-ghost">
+              <i className="las la-truck" /> Track an order
+            </Link>
+          </div>
+        </div>
+        <div className="account-hero__stat">
+          <span className="account-hero__stat-label">Total spent</span>
+          <strong className="account-hero__stat-value">{showAmount(data?.total_spent ?? 0)}</strong>
+          <span className="account-hero__stat-note">on paid orders</span>
+        </div>
       </div>
 
-      <div className="row gy-4">
+      <div className="row g-3">
         {tiles.map((tile) => (
-          <div className="col-sm-6 col-xl-3" key={tile.label}>
-            <div className="dashboard-widget">
+          <div className="col-6 col-xl-3" key={tile.label}>
+            <div className={`dashboard-widget dashboard-widget--${tile.tone}`}>
               <div className="dashboard-widget__icon">
                 <i className={tile.icon} />
               </div>
@@ -62,74 +144,65 @@ export function AccountDashboard() {
             </div>
           </div>
         ))}
-
-        <div className="col-sm-6 col-xl-6">
-          <div className="dashboard-widget">
-            <div className="dashboard-widget__icon">
-              <i className="las la-wallet" />
-            </div>
-            <div className="dashboard-widget__content">
-              <span className="dashboard-widget__label">Total spent</span>
-              <h4 className="dashboard-widget__value">{showAmount(data?.total_spent ?? 0)}</h4>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-sm-6 col-xl-6">
-          <div className="dashboard-widget">
-            <div className="dashboard-widget__icon">
-              <i className="las la-heart" />
-            </div>
-            <div className="dashboard-widget__content">
-              <span className="dashboard-widget__label">Saved products</span>
-              <h4 className="dashboard-widget__value">{data?.wishlist_count ?? 0}</h4>
-            </div>
-          </div>
-        </div>
       </div>
 
-      <div className="checkout-card mt-4">
-        <div className="d-flex justify-content-between align-items-center mb-3">
+      <div className="checkout-card">
+        <div className="checkout-card__head">
           <h5 className="checkout-card__title mb-0">Recent orders</h5>
-          <Link href="/user/orders" className="text--base">
-            {t('View all')}
+          <Link href="/user/orders" className="checkout-card__link">
+            {t('View all')} <i className="las la-arrow-right" />
           </Link>
         </div>
 
-        {(data?.recent_orders ?? []).length === 0 ? (
-          <p className="mb-0">You have not placed an order yet.</p>
-        ) : (
-          <div className="table-responsive">
-            <table className="table table--responsive--md">
-              <thead>
-                <tr>
-                  <th>Order</th>
-                  <th>{t('Date')}</th>
-                  <th>{t('Status')}</th>
-                  <th>{t('Payment')}</th>
-                  <th className="text-end">{t('Total')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data?.recent_orders ?? []).map((order) => (
-                  <tr key={order.id}>
-                    <td>
-                      <Link href={`/user/orders/${order.order_number}`}>{order.order_number}</Link>
-                    </td>
-                    <td>{formatDate(order.created_at)}</td>
-                    <td>
-                      <span className="badge badge--base">{order.status_label}</span>
-                    </td>
-                    <td>{order.payment_status_label}</td>
-                    <td className="text-end">{showAmount(order.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {orders.length === 0 ? (
+          <div className="account-empty">
+            <span className="account-empty__icon">
+              <i className="las la-shopping-bag" />
+            </span>
+            <h6 className="account-empty__title">No orders yet</h6>
+            <p className="account-empty__desc">Genuine parts from VIPURI branches across Tanzania are a few clicks away.</p>
+            <Link href="/products" className="btn btn--base btn--sm">
+              Browse products
+            </Link>
           </div>
+        ) : (
+          <ul className="order-list">
+            {orders.map((order) => (
+              <li key={order.id}>
+                <Link className="order-list__item" href={`/user/orders/${order.order_number}`}>
+                  <span className="order-list__icon">
+                    <i className="las la-receipt" />
+                  </span>
+                  <span className="order-list__main">
+                    <span className="order-list__number">#{order.order_number}</span>
+                    <span className="order-list__meta">
+                      {formatDate(order.created_at)} · {paymentLabel(order.payment_status, order.payment_status_label)}
+                    </span>
+                  </span>
+                  <span className={`status-pill status-pill--${orderTone(order.status)}`}>{order.status_label}</span>
+                  <span className="order-list__total">{showAmount(order.total)}</span>
+                  <i className="las la-angle-right order-list__arrow" />
+                </Link>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
-    </>
+
+      <div className="row g-3">
+        {shortcuts.map((item) => (
+          <div className="col-sm-6 col-xl-3" key={item.href}>
+            <Link className="account-shortcut" href={item.href}>
+              <span className="account-shortcut__icon">
+                <i className={item.icon} />
+              </span>
+              <span className="account-shortcut__label">{item.label}</span>
+              <span className="account-shortcut__desc">{item.desc}</span>
+            </Link>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -143,6 +216,17 @@ const ORDER_TABS = [
   { key: 'completed', label: 'Delivered' },
   { key: 'cancelled', label: 'Cancelled' },
 ];
+
+/** Placeholder rows shown while a list loads. */
+function ListSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div aria-busy="true">
+      {Array.from({ length: rows }, (_, index) => (
+        <div className="vp-skeleton vp-skeleton--line" key={index} />
+      ))}
+    </div>
+  );
+}
 
 export function AccountOrders() {
   const t = useTranslate();
@@ -173,18 +257,20 @@ export function AccountOrders() {
     void load();
   }, [load]);
 
-  return (
-    <>
-      <div className="dashboard-header mb-4">
-        <h4 className="mb-0">{t('My Orders')}</h4>
-      </div>
+  const activeTab = ORDER_TABS.find((tab) => tab.key === status);
 
-      <ul className="nav-tab-list mb-4 d-flex flex-wrap gap-2">
+  return (
+    <div className="account-stack">
+      <AccountHeading title={t('My Orders')} desc="Every order you have placed with VIPURI, newest first." />
+
+      <ul className="account-tabs" role="tablist" aria-label="Filter orders">
         {ORDER_TABS.map((tab) => (
           <li key={tab.key}>
             <button
               type="button"
-              className={`btn btn--sm ${status === tab.key ? 'btn--base' : 'btn-outline--base'}`}
+              role="tab"
+              aria-selected={status === tab.key}
+              className={`account-tabs__btn ${status === tab.key ? 'active' : ''}`}
               onClick={() => {
                 setStatus(tab.key);
                 setPage(1);
@@ -198,55 +284,65 @@ export function AccountOrders() {
 
       <div className="checkout-card">
         {loading ? (
-          <div className="vp-skeleton vp-skeleton--line" />
+          <ListSkeleton />
         ) : orders.length === 0 ? (
-          <EmptyMessage message="No orders found" action={{ label: 'Start shopping', href: '/products' }} />
+          <AccountEmpty
+            icon="las la-shopping-bag"
+            title={status ? `No ${activeTab?.label.toLowerCase()} orders` : 'No orders yet'}
+            desc={
+              status
+                ? 'Nothing matches this filter right now.'
+                : 'Genuine parts from VIPURI branches across Tanzania are a few clicks away.'
+            }
+            action={
+              status ? (
+                <button type="button" className="btn btn--base btn--sm" onClick={() => setStatus('')}>
+                  Show all orders
+                </button>
+              ) : (
+                <Link href="/products" className="btn btn--base btn--sm">
+                  Browse products
+                </Link>
+              )
+            }
+          />
         ) : (
-          <div className="table-responsive">
-            <table className="table table--responsive--md">
-              <thead>
-                <tr>
-                  <th>Order</th>
-                  <th>{t('Date')}</th>
-                  <th>{t('Branch')}</th>
-                  <th>{t('Status')}</th>
-                  <th>{t('Payment')}</th>
-                  <th className="text-end">{t('Total')}</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((order) => (
-                  <tr key={order.id}>
-                    <td>{order.order_number}</td>
-                    <td>{formatDate(order.created_at)}</td>
-                    <td>{order.branch?.name ?? '—'}</td>
-                    <td>
-                      <span className="badge badge--base">{order.status_label}</span>
-                    </td>
-                    <td>{order.payment_status_label}</td>
-                    <td className="text-end">{showAmount(order.total)}</td>
-                    <td className="text-end">
-                      <Link href={`/user/orders/${order.order_number}`} className="btn btn--sm btn-outline--base">
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="order-list">
+            {orders.map((order) => (
+              <li key={order.id}>
+                <Link className="order-list__item" href={`/user/orders/${order.order_number}`}>
+                  <span className="order-list__icon">
+                    <i className="las la-receipt" />
+                  </span>
+                  <span className="order-list__main">
+                    <span className="order-list__number">#{order.order_number}</span>
+                    <span className="order-list__meta">
+                      {[
+                        formatDate(order.created_at),
+                        order.branch?.name,
+                        paymentLabel(order.payment_status, order.payment_status_label),
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  </span>
+                  <span className={`status-pill status-pill--${orderTone(order.status)}`}>{order.status_label}</span>
+                  <span className="order-list__total">{showAmount(order.total)}</span>
+                  <i className="las la-angle-right order-list__arrow" />
+                </Link>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
-      {pagination && pagination.last_page > 1 && (
-        <div className="mt-4">
-          <Pagination pagination={pagination} onChange={setPage} />
-        </div>
-      )}
-    </>
+      {pagination && pagination.last_page > 1 && <Pagination pagination={pagination} onChange={setPage} />}
+    </div>
   );
 }
+
+/** Orders that have left the branch (or ended) can no longer be paid online. */
+const NO_ONLINE_PAYMENT = [3, 4, 6, 7];
 
 export function AccountOrderDetail({ orderNumber }: { orderNumber: string }) {
   const t = useTranslate();
@@ -269,41 +365,102 @@ export function AccountOrderDetail({ orderNumber }: { orderNumber: string }) {
     void load();
   }, [load]);
 
-  if (loading) return <div className="vp-skeleton vp-skeleton--line" />;
-  if (!order) return <EmptyMessage message="Order not found" action={{ label: 'My orders', href: '/user/orders' }} />;
+  if (loading) {
+    return (
+      <div className="account-stack">
+        <div className="vp-skeleton vp-skeleton--title" />
+        <div className="checkout-card">
+          <ListSkeleton />
+        </div>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="account-stack">
+        <BackLink href="/user/orders" label="My orders" />
+        <div className="checkout-card">
+          <AccountEmpty
+            icon="las la-search"
+            title="Order not found"
+            desc="We could not find this order on your account."
+            action={
+              <Link href="/user/orders" className="btn btn--base btn--sm">
+                View my orders
+              </Link>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
 
   const address = order.shipping_address ?? {};
   const cancellable = [0, 1, 2].includes(order.status);
+  const paid = order.payment_status === 1;
+  const canPay = !paid && order.payment_status !== 2 && !order.cod && !NO_ONLINE_PAYMENT.includes(order.status);
+  const unpaidDelivered = !paid && order.status === 4;
+  const place = formatPlace(address.city, address.state);
+  const phone = [address.dial_code, address.mobile].filter(Boolean).join(' ');
+
+  // Oldest first, so the list reads top to bottom and the last step is "now".
+  const logs = (order.status_logs ?? [])
+    .slice()
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime() || a.id - b.id);
+
+  const cancel = async () => {
+    if (!window.confirm('Cancel this order? This cannot be undone.')) return;
+
+    setCancelling(true);
+    try {
+      const { message } = await apiWithMessage(`/user/orders/${order.order_number}/cancel`, {
+        method: 'POST',
+        auth: 'user',
+        body: { reason: 'Cancelled by customer' },
+      });
+      toastSuccess(message);
+      await load();
+    } catch (error) {
+      toastError(error instanceof ApiError ? error.message : 'Could not cancel this order');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   return (
-    <>
-      <div className="dashboard-header mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div>
-          <h4 className="mb-1">Order {order.order_number}</h4>
-          <p className="mb-0">Placed {formatDate(order.created_at, true)}</p>
-        </div>
-        <div className="d-flex align-items-center gap-2">
-          <span className="badge badge--base">{order.status_label}</span>
-          <span className="badge badge--primary">{order.payment_status_label}</span>
-          <button
-            type="button"
-            className="btn btn--sm btn-outline--base"
-            onClick={async () => {
-              try {
-                await downloadFile(
-                  `/user/orders/${order.order_number}/invoice`,
-                  `invoice-${order.order_number}.pdf`,
-                  'user',
-                );
-              } catch (error) {
-                toastError(error instanceof ApiError ? error.message : 'Could not generate the invoice');
-              }
-            }}
-          >
-            <i className="las la-file-invoice" /> Invoice
-          </button>
-        </div>
-      </div>
+    <div className="account-stack">
+      <BackLink href="/user/orders" label="My orders" />
+
+      <AccountHeading
+        title={`Order #${order.order_number}`}
+        desc={`Placed ${formatDate(order.created_at, true)}`}
+        action={
+          <>
+            <span className={`status-pill status-pill--${orderTone(order.status)}`}>{order.status_label}</span>
+            <span className={`status-pill status-pill--${paymentTone(order.payment_status)}`}>
+              {paymentLabel(order.payment_status, order.payment_status_label)}
+            </span>
+            <button
+              type="button"
+              className="account-btn"
+              onClick={async () => {
+                try {
+                  await downloadFile(
+                    `/user/orders/${order.order_number}/invoice`,
+                    `invoice-${order.order_number}.pdf`,
+                    'user',
+                  );
+                } catch (error) {
+                  toastError(error instanceof ApiError ? error.message : 'Could not generate the invoice');
+                }
+              }}
+            >
+              <i className="las la-file-invoice" /> Invoice
+            </button>
+          </>
+        }
+      />
 
       <div className="checkout-card">
         <h5 className="checkout-card__title">Items</h5>
@@ -322,7 +479,11 @@ export function AccountOrderDetail({ orderNumber }: { orderNumber: string }) {
                     item.product_name
                   )}
                 </h6>
-                {item.variation_label && <span style={{ fontSize: 13 }}>{item.variation_label}</span>}
+                {item.variation_label && <span className="checkout-item__variant">{item.variation_label}</span>}
+                <span className="checkout-item__unit">
+                  {/* Line totals include VAT while `price` does not, so derive the unit price from the line. */}
+                  {showAmount(item.quantity > 0 ? item.subtotal / item.quantity : item.price)} × {item.quantity}
+                </span>
               </div>
               <span className="checkout-item__price">{showAmount(item.subtotal)}</span>
             </li>
@@ -330,102 +491,122 @@ export function AccountOrderDetail({ orderNumber }: { orderNumber: string }) {
         </ul>
       </div>
 
-      <div className="row gy-4 mt-1">
+      <div className="row g-4">
         <div className="col-md-6">
           <div className="checkout-card h-100">
             <h5 className="checkout-card__title">Delivery</h5>
-            <p className="mb-0">
-              {[address.firstname, address.lastname].filter(Boolean).join(' ')}
-              <br />
-              {address.address}
-              <br />
-              {[address.city, address.state].filter(Boolean).join(', ')}
-              <br />
-              {[address.dial_code, address.mobile].filter(Boolean).join(' ')}
+            <p className="account-detail-text">
+              <strong>{[address.firstname, address.lastname].filter(Boolean).join(' ') || '—'}</strong>
+              {addressLine(address.address, place) && (
+                <>
+                  <br />
+                  {addressLine(address.address, place)}
+                </>
+              )}
+              {phone && (
+                <>
+                  <br />
+                  {phone}
+                </>
+              )}
             </p>
-            {order.branch && <p className="mt-3 mb-0">Fulfilled by {order.branch.name}</p>}
-            {order.shipping_method && <p className="mb-0">Method: {order.shipping_method}</p>}
+            {(order.branch || order.shipping_method) && (
+              <ul className="account-detail-meta">
+                {order.branch && (
+                  <li>
+                    <i className="las la-store" /> Fulfilled by {order.branch.name}
+                  </li>
+                )}
+                {order.shipping_method && (
+                  <li>
+                    <i className="las la-truck" /> {order.shipping_method}
+                  </li>
+                )}
+              </ul>
+            )}
           </div>
         </div>
 
         <div className="col-md-6">
-          <div className="checkout-information h-100">
-            <h5 className="title mb-3">Summary</h5>
-            <ul className="checkout-information__list">
+          <div className="checkout-card h-100">
+            <h5 className="checkout-card__title">Summary</h5>
+            <ul className="account-summary">
               <li>
-                <span>{t('Subtotal')}</span> <span>{showAmount(order.subtotal)}</span>
+                <span>{t('Subtotal')}</span>
+                <span>{showAmount(order.subtotal)}</span>
               </li>
               {order.total_tax > 0 && (
-                <li>
-                  <span>{t('Tax')}</span> <span>{showAmount(order.total_tax)}</span>
+                <li className="account-summary__included">
+                  <span>VAT (included)</span>
+                  <span>{showAmount(order.total_tax)}</span>
                 </li>
               )}
               <li>
-                <span>Delivery</span> <span>{showAmount(order.shipping_charge)}</span>
+                <span>Delivery</span>
+                <span>{order.shipping_charge > 0 ? showAmount(order.shipping_charge) : 'Free'}</span>
               </li>
               {order.discount > 0 && (
-                <li>
-                  <span>{t('Discount')}</span> <span className="text--base">- {showAmount(order.discount)}</span>
+                <li className="account-summary__discount">
+                  <span>{t('Discount')}</span>
+                  <span>− {showAmount(order.discount)}</span>
                 </li>
               )}
             </ul>
-            <div className="checkout-information__total">
-              <span>{t('Total')}</span> <span>{showAmount(order.total)}</span>
+            <div className="account-summary__total">
+              <span>{t('Total')}</span>
+              <span>{showAmount(order.total)}</span>
             </div>
 
-            {order.payment_status !== 1 && !order.cod && order.status !== 7 && (
-              <Link href={`/checkout/payment/${order.order_number}`} className="btn btn--base w-100 mt-3">
-                Pay now
-              </Link>
+            {unpaidDelivered && (
+              <p className="account-note">
+                <i className="las la-info-circle" />
+                <span>Payment not yet recorded — contact support if you have paid.</span>
+              </p>
             )}
 
-            {cancellable && (
-              <button
-                className="btn btn-outline--base w-100 mt-2"
-                type="button"
-                disabled={cancelling}
-                onClick={async () => {
-                  setCancelling(true);
-                  try {
-                    const { message } = await apiWithMessage(`/user/orders/${order.order_number}/cancel`, {
-                      method: 'POST',
-                      auth: 'user',
-                      body: { reason: 'Cancelled by customer' },
-                    });
-                    toastSuccess(message);
-                    await load();
-                  } catch (error) {
-                    toastError(error instanceof ApiError ? error.message : 'Could not cancel this order');
-                  } finally {
-                    setCancelling(false);
-                  }
-                }}
-              >
-                {cancelling ? 'Cancelling…' : 'Cancel order'}
-              </button>
+            {(canPay || cancellable) && (
+              <div className="form-actions">
+                {cancellable && (
+                  <button className="btn btn-outline--danger" type="button" disabled={cancelling} onClick={cancel}>
+                    {cancelling ? 'Cancelling…' : 'Cancel order'}
+                  </button>
+                )}
+                {canPay && (
+                  <Link href={`/checkout/payment/${order.order_number}`} className="btn btn--base">
+                    Pay now
+                  </Link>
+                )}
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {(order.status_logs ?? []).length > 0 && (
-        <div className="checkout-card mt-4">
+      {logs.length > 0 && (
+        <div className="checkout-card">
           <h5 className="checkout-card__title">Progress</h5>
           <ul className="order-timeline">
-            {(order.status_logs ?? []).map((log) => (
-              <li className="order-timeline__item" key={log.id}>
-                <div className="order-timeline__dot" />
-                <div className="order-timeline__content">
-                  <h6 className="mb-1">{log.to_status_label}</h6>
-                  <span style={{ fontSize: 13 }}>{formatDate(log.created_at, true)}</span>
-                  {log.remark && <p className="mb-0 mt-1">{log.remark}</p>}
-                </div>
-              </li>
-            ))}
+            {logs.map((log, index) => {
+              const current = index === logs.length - 1;
+              return (
+                <li
+                  className={`order-timeline__item ${current ? 'order-timeline__item--current' : ''}`}
+                  key={log.id}
+                  aria-current={current ? 'step' : undefined}
+                >
+                  <div className="order-timeline__dot" />
+                  <div className="order-timeline__content">
+                    <h6 className="order-timeline__title">{log.to_status_label}</h6>
+                    <span className="order-timeline__time">{formatDate(log.created_at, true)}</span>
+                    {log.remark && <p className="order-timeline__remark">{log.remark}</p>}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -447,7 +628,7 @@ type Address = {
 };
 
 const EMPTY_ADDRESS = {
-  title: 'Home',
+  title: '',
   firstname: '',
   lastname: '',
   dial_code: '+255',
@@ -463,6 +644,7 @@ const EMPTY_ADDRESS = {
 export function AccountAddresses() {
   const t = useTranslate();
   const [addresses, setAddresses] = useState<Address[]>([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ ...EMPTY_ADDRESS });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -473,6 +655,8 @@ export function AccountAddresses() {
       setAddresses(data.addresses ?? []);
     } catch {
       setAddresses([]);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -482,6 +666,17 @@ export function AccountAddresses() {
 
   const update = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) =>
     setForm((current) => ({ ...current, [key]: event.target.value }));
+
+  const focusForm = () => {
+    const field = document.getElementById('address-label');
+    field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    field?.focus({ preventScroll: true });
+  };
+
+  const resetForm = () => {
+    setEditingId(null);
+    setForm({ ...EMPTY_ADDRESS });
+  };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -495,8 +690,7 @@ export function AccountAddresses() {
       });
 
       toastSuccess(message);
-      setForm({ ...EMPTY_ADDRESS });
-      setEditingId(null);
+      resetForm();
       await load();
     } catch (error) {
       toastError(error instanceof ApiError ? error.message : 'Could not save the address');
@@ -505,79 +699,102 @@ export function AccountAddresses() {
     }
   };
 
-  return (
-    <>
-      <div className="dashboard-header mb-4">
-        <h4 className="mb-0">{t('Addresses')}</h4>
-      </div>
+  const remove = async (address: Address) => {
+    if (!window.confirm(`Remove "${address.title}" from your addresses?`)) return;
 
-      <div className="row gy-4">
+    try {
+      const { message } = await apiWithMessage(`/user/addresses/${address.id}`, {
+        method: 'DELETE',
+        auth: 'user',
+      });
+      toastSuccess(message);
+      if (editingId === address.id) resetForm();
+      await load();
+    } catch (error) {
+      toastError(error instanceof ApiError ? error.message : 'Could not remove the address');
+    }
+  };
+
+  return (
+    <div className="account-stack">
+      <AccountHeading title={t('Addresses')} desc="Saved delivery addresses for a faster checkout." />
+
+      <div className="row g-4">
         <div className="col-lg-7">
-          {addresses.length === 0 ? (
+          {loading ? (
             <div className="checkout-card">
-              <p className="mb-0">You have not saved an address yet.</p>
+              <ListSkeleton />
+            </div>
+          ) : addresses.length === 0 ? (
+            <div className="checkout-card">
+              <AccountEmpty
+                icon="las la-map-marker-alt"
+                title="Add your first address"
+                desc="Save where you want parts delivered and checkout will fill it in for you."
+                action={
+                  <button type="button" className="btn btn--base btn--sm" onClick={focusForm}>
+                    Add an address
+                  </button>
+                }
+              />
             </div>
           ) : (
-            addresses.map((address) => (
-              <div className="checkout-card mb-3" key={address.id}>
-                <div className="d-flex justify-content-between align-items-start gap-3">
-                  <div>
-                    <h6 className="mb-1">
-                      {address.title} {address.is_default && <span className="badge badge--base">Default</span>}
-                    </h6>
-                    <p className="mb-0">
-                      {address.firstname} {address.lastname}
+            <div className="account-cards">
+              {addresses.map((address) => {
+                const place = formatPlace(address.city, address.state);
+                return (
+                  <div
+                    className={`checkout-card address-card ${editingId === address.id ? 'address-card--editing' : ''}`}
+                    key={address.id}
+                  >
+                    <div className="address-card__head">
+                      <span className="address-card__icon">
+                        <i className="las la-map-marker-alt" />
+                      </span>
+                      <h6 className="address-card__title">{address.title}</h6>
+                      {address.is_default && <span className="status-pill status-pill--success">Default</span>}
+                    </div>
+                    <p className="address-card__body">
+                      <strong>
+                        {address.firstname} {address.lastname}
+                      </strong>
                       <br />
-                      {address.address}, {address.city}
+                      {addressLine(address.address, place)}
                       <br />
-                      {address.dial_code} {address.mobile}
+                      {[address.dial_code, address.mobile].filter(Boolean).join(' ')}
                     </p>
-                  </div>
-                  <div className="d-flex gap-2">
-                    <button
-                      className="btn btn--sm btn-outline--base"
-                      type="button"
-                      onClick={() => {
-                        setEditingId(address.id);
-                        setForm({
-                          title: address.title,
-                          firstname: address.firstname,
-                          lastname: address.lastname,
-                          dial_code: address.dial_code ?? '+255',
-                          mobile: address.mobile,
-                          email: address.email ?? '',
-                          address: address.address,
-                          city: address.city,
-                          state: address.state ?? '',
-                          zip: address.zip ?? '',
-                          is_default: address.is_default,
-                        });
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="btn btn--sm btn-outline--danger"
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          const { message } = await apiWithMessage(`/user/addresses/${address.id}`, {
-                            method: 'DELETE',
-                            auth: 'user',
+                    <div className="address-card__actions">
+                      <button
+                        className="account-btn"
+                        type="button"
+                        onClick={() => {
+                          setEditingId(address.id);
+                          setForm({
+                            title: address.title,
+                            firstname: address.firstname,
+                            lastname: address.lastname,
+                            dial_code: address.dial_code ?? '+255',
+                            mobile: address.mobile,
+                            email: address.email ?? '',
+                            address: address.address,
+                            city: address.city,
+                            state: address.state ?? '',
+                            zip: address.zip ?? '',
+                            is_default: address.is_default,
                           });
-                          toastSuccess(message);
-                          await load();
-                        } catch (error) {
-                          toastError(error instanceof ApiError ? error.message : 'Could not remove the address');
-                        }
-                      }}
-                    >
-                      {t('Remove')}
-                    </button>
+                          focusForm();
+                        }}
+                      >
+                        <i className="las la-pen" /> Edit
+                      </button>
+                      <button className="account-btn account-btn--danger" type="button" onClick={() => remove(address)}>
+                        <i className="las la-trash-alt" /> {t('Remove')}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ))
+                );
+              })}
+            </div>
           )}
         </div>
 
@@ -585,10 +802,22 @@ export function AccountAddresses() {
           <div className="checkout-card">
             <h5 className="checkout-card__title">{editingId ? 'Edit address' : 'Add a new address'}</h5>
             <form onSubmit={submit}>
+              <h6 className="form-section-title">
+                <i className="las la-user" /> Contact
+              </h6>
               <div className="row gy-3">
                 <div className="col-12">
-                  <label className="form--label">Label</label>
-                  <input className="form-control form--control" required value={form.title} onChange={update('title')} />
+                  <label className="form--label" htmlFor="address-label">
+                    Label
+                  </label>
+                  <input
+                    id="address-label"
+                    className="form-control form--control"
+                    required
+                    placeholder="e.g. Home, Office, Garage"
+                    value={form.title}
+                    onChange={update('title')}
+                  />
                 </div>
                 <div className="col-sm-6">
                   <label className="form--label">{t('First name')}</label>
@@ -600,10 +829,25 @@ export function AccountAddresses() {
                 </div>
                 <div className="col-12">
                   <label className="form--label">{t('Mobile')}</label>
-                  <input className="form-control form--control" required value={form.mobile} onChange={update('mobile')} />
+                  <div className="input-group input--group">
+                    <span className="input-group-text">{form.dial_code || '+255'}</span>
+                    <input
+                      className="form-control form--control"
+                      required
+                      inputMode="tel"
+                      value={form.mobile}
+                      onChange={update('mobile')}
+                    />
+                  </div>
                 </div>
+              </div>
+
+              <h6 className="form-section-title">
+                <i className="las la-map-marked-alt" /> Location
+              </h6>
+              <div className="row gy-3">
                 <div className="col-12">
-                  <label className="form--label">Address</label>
+                  <label className="form--label">Street address</label>
                   <input className="form-control form--control" required value={form.address} onChange={update('address')} />
                 </div>
                 <div className="col-sm-6">
@@ -628,39 +872,52 @@ export function AccountAddresses() {
                     </label>
                   </div>
                 </div>
-                <div className="col-12 d-flex gap-2">
-                  <button className="btn btn--base" type="submit" disabled={busy}>
-                    {busy ? 'Saving…' : editingId ? 'Update address' : 'Save address'}
+              </div>
+
+              <div className="form-actions">
+                {editingId && (
+                  <button className="btn btn-outline--base" type="button" onClick={resetForm}>
+                    {t('Cancel')}
                   </button>
-                  {editingId && (
-                    <button
-                      className="btn btn-outline--base"
-                      type="button"
-                      onClick={() => {
-                        setEditingId(null);
-                        setForm({ ...EMPTY_ADDRESS });
-                      }}
-                    >
-                      {t('Cancel')}
-                    </button>
-                  )}
-                </div>
+                )}
+                <button className="btn btn--base" type="submit" disabled={busy}>
+                  {busy ? 'Saving…' : editingId ? 'Update address' : 'Save address'}
+                </button>
               </div>
             </form>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
 /* --------------------------------- Reviews -------------------------------- */
 
-type ReviewableProduct = { id: number; name: string; slug: string; image: string | null; reviewed: boolean };
+type ReviewableProduct = {
+  id: number;
+  name: string;
+  slug: string;
+  image: string | null;
+  reviewed: boolean;
+  /** The star rating the customer gave, when the API includes it. */
+  rating?: number | null;
+};
+
+function Stars({ value }: { value: number }) {
+  return (
+    <span className="review-stars" aria-label={`${value} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <i key={star} className={`las la-star ${star <= value ? 'is-on' : ''}`} />
+      ))}
+    </span>
+  );
+}
 
 export function AccountReviews() {
   const t = useTranslate();
   const [products, setProducts] = useState<ReviewableProduct[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<ReviewableProduct | null>(null);
   const [rating, setRating] = useState(5);
   const [review, setReview] = useState('');
@@ -672,12 +929,24 @@ export function AccountReviews() {
       setProducts(data.products ?? []);
     } catch {
       setProducts([]);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Products still waiting for a review come first.
+  const sorted = useMemo(
+    () => products.slice().sort((a, b) => Number(a.reviewed) - Number(b.reviewed)),
+    [products],
+  );
+
+  useEffect(() => {
+    if (selected) document.getElementById('review-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [selected]);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -704,30 +973,54 @@ export function AccountReviews() {
     }
   };
 
-  return (
-    <>
-      <div className="dashboard-header mb-4">
-        <h4 className="mb-1">{t('Reviews')}</h4>
-        <p className="mb-0">Rate the parts you have received.</p>
-      </div>
+  const pending = products.filter((product) => !product.reviewed).length;
 
-      {products.length === 0 ? (
-        <EmptyMessage message="Nothing to review yet" action={{ label: 'Browse products', href: '/products' }} />
+  return (
+    <div className="account-stack">
+      <AccountHeading
+        title={t('Reviews')}
+        desc={
+          pending > 0
+            ? `Rate the parts you have received — ${pending} waiting for your review.`
+            : 'Rate the parts you have received.'
+        }
+      />
+
+      {loading ? (
+        <div className="checkout-card">
+          <ListSkeleton />
+        </div>
+      ) : products.length === 0 ? (
+        <div className="checkout-card">
+          <AccountEmpty
+            icon="las la-star"
+            title="Nothing to review yet"
+            desc="Once an order is delivered, its parts show up here for you to rate."
+            action={
+              <Link href="/products" className="btn btn--base btn--sm">
+                Browse products
+              </Link>
+            }
+          />
+        </div>
       ) : (
-        <div className="row gy-4">
-          {products.map((product) => (
+        <div className="row g-3">
+          {sorted.map((product) => (
             <div className="col-md-6" key={product.id}>
-              <div className="checkout-card h-100 d-flex align-items-center gap-3">
-                <img src={imageUrl(product.image)} alt={product.name} width={64} height={64} />
-                <div className="flex-grow-1">
-                  <h6 className="mb-1">
+              <div className="checkout-card review-card">
+                <img className="review-thumb" src={imageUrl(product.image)} alt={product.name} />
+                <div className="review-card__body">
+                  <h6 className="review-card__name">
                     <Link href={`/product/${product.slug}`}>{product.name}</Link>
                   </h6>
                   {product.reviewed ? (
-                    <span className="badge badge--success">Reviewed</span>
+                    <div className="review-card__status">
+                      <span className="status-pill status-pill--success">Reviewed</span>
+                      {product.rating ? <Stars value={product.rating} /> : null}
+                    </div>
                   ) : (
-                    <button className="btn btn--sm btn-outline--base" type="button" onClick={() => setSelected(product)}>
-                      {t('Write a review')}
+                    <button className="account-btn" type="button" onClick={() => setSelected(product)}>
+                      <i className="las la-pen" /> {t('Write a review')}
                     </button>
                   )}
                 </div>
@@ -738,49 +1031,52 @@ export function AccountReviews() {
       )}
 
       {selected && (
-        <div className="checkout-card mt-4">
+        <div className="checkout-card" id="review-form">
           <h5 className="checkout-card__title">Review {selected.name}</h5>
           <form onSubmit={submit}>
-            <div className="form-group mb-3">
-              <label className="form--label">{t('Rating')}</label>
-              <div className="d-flex gap-2 align-items-center">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    className="btn btn--sm"
-                    style={{ background: 'none', border: 0, padding: 0, fontSize: 22, color: star <= rating ? '#f7b500' : '#c4c4c4' }}
-                    onClick={() => setRating(star)}
-                    aria-label={`${star} star`}
-                  >
-                    <i className="las la-star" />
-                  </button>
-                ))}
-                <Rating average={rating} showCount={false} />
-              </div>
+            <h6 className="form-section-title">
+              <i className="las la-star" /> {t('Rating')}
+            </h6>
+            <div className="review-star-input" role="radiogroup" aria-label="Rating">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  role="radio"
+                  aria-checked={rating === star}
+                  className={star <= rating ? 'is-on' : ''}
+                  onClick={() => setRating(star)}
+                  aria-label={`${star} star${star > 1 ? 's' : ''}`}
+                >
+                  <i className="las la-star" />
+                </button>
+              ))}
             </div>
-            <div className="form-group mb-3">
-              <label className="form--label">Your review</label>
-              <textarea
-                className="form-control form--control"
-                rows={4}
-                maxLength={2000}
-                value={review}
-                onChange={(event) => setReview(event.target.value)}
-              />
-            </div>
-            <div className="d-flex gap-2">
-              <button className="btn btn--base" type="submit" disabled={busy}>
-                {busy ? 'Submitting…' : 'Submit review'}
-              </button>
+
+            <h6 className="form-section-title">
+              <i className="las la-comment" /> Your review
+            </h6>
+            <textarea
+              className="form-control form--control"
+              rows={4}
+              maxLength={2000}
+              placeholder="How did the part fit and perform?"
+              value={review}
+              onChange={(event) => setReview(event.target.value)}
+            />
+
+            <div className="form-actions">
               <button className="btn btn-outline--base" type="button" onClick={() => setSelected(null)}>
                 {t('Cancel')}
+              </button>
+              <button className="btn btn--base" type="submit" disabled={busy}>
+                {busy ? 'Submitting…' : 'Submit review'}
               </button>
             </div>
           </form>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -801,10 +1097,10 @@ type PaymentRow = {
 };
 
 export function AccountPayments() {
-  const t = useTranslate();
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api<{ payments: PaymentRow[]; pagination: PaginationMeta }>(`/user/payments?page=${page}`, { auth: 'user' })
@@ -812,56 +1108,70 @@ export function AccountPayments() {
         setRows(data.payments ?? []);
         setPagination(data.pagination ?? null);
       })
-      .catch(() => setRows([]));
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false));
   }, [page]);
 
   return (
-    <>
-      <div className="dashboard-header mb-4">
-        <h4 className="mb-0">Payment history</h4>
-      </div>
+    <div className="account-stack">
+      <AccountHeading title="Payment history" desc="Payments made against your orders." />
 
       <div className="checkout-card">
-        {rows.length === 0 ? (
-          <p className="mb-0">No payments recorded yet.</p>
+        {loading ? (
+          <ListSkeleton />
+        ) : rows.length === 0 ? (
+          <AccountEmpty
+            icon="las la-credit-card"
+            title="No payments yet"
+            desc="Payments you make online for your orders will be listed here."
+            action={
+              <Link href="/user/orders" className="btn btn--base btn--sm">
+                View my orders
+              </Link>
+            }
+          />
         ) : (
-          <div className="table-responsive">
-            <table className="table table--responsive--md">
-              <thead>
-                <tr>
-                  <th>Reference</th>
-                  <th>Order</th>
-                  <th>Method</th>
-                  <th>{t('Date')}</th>
-                  <th>{t('Status')}</th>
-                  <th className="text-end">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.id}>
-                    <td>{row.trx}</td>
-                    <td>{row.order_number ?? '—'}</td>
-                    <td>{row.method ?? '—'}</td>
-                    <td>{formatDate(row.created_at)}</td>
-                    <td>
-                      <span className="badge badge--base">{row.status_label}</span>
-                    </td>
-                    <td className="text-end">{showAmount(row.final_amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="order-list">
+            {rows.map((row) => {
+              const content = (
+                <>
+                  <span className="order-list__icon">
+                    <i className="las la-credit-card" />
+                  </span>
+                  <span className="order-list__main">
+                    <span className="order-list__number">{row.trx}</span>
+                    <span className="order-list__meta">
+                      {[row.order_number && `Order #${row.order_number}`, formatDate(row.created_at), row.method]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  </span>
+                  <span className={`status-pill status-pill--${paymentTone(row.status)}`}>
+                    {paymentLabel(row.status, row.status_label)}
+                  </span>
+                  <span className="order-list__total">{showAmount(row.final_amount)}</span>
+                </>
+              );
+
+              return (
+                <li key={row.id}>
+                  {row.order_number ? (
+                    <Link className="order-list__item" href={`/user/orders/${row.order_number}`}>
+                      {content}
+                      <i className="las la-angle-right order-list__arrow" />
+                    </Link>
+                  ) : (
+                    <div className="order-list__item">{content}</div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
 
-      {pagination && pagination.last_page > 1 && (
-        <div className="mt-4">
-          <Pagination pagination={pagination} onChange={setPage} />
-        </div>
-      )}
-    </>
+      {pagination && pagination.last_page > 1 && <Pagination pagination={pagination} onChange={setPage} />}
+    </div>
   );
 }
 
@@ -872,6 +1182,7 @@ type NotificationRow = { id: number; title: string; click_url: string | null; is
 export function AccountNotifications() {
   const [rows, setRows] = useState<NotificationRow[]>([]);
   const [unread, setUnread] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
@@ -882,6 +1193,8 @@ export function AccountNotifications() {
       setUnread(data.unread ?? 0);
     } catch {
       setRows([]);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -889,59 +1202,107 @@ export function AccountNotifications() {
     void load();
   }, [load]);
 
+  const markRead = async (row: NotificationRow) => {
+    try {
+      await api(`/user/notifications/${row.id}/read`, { method: 'POST', auth: 'user' });
+      await load();
+    } catch {
+      toastError('Could not update this notification');
+    }
+  };
+
   return (
-    <>
-      <div className="dashboard-header mb-4 d-flex justify-content-between align-items-center">
-        <h4 className="mb-0">Notifications {unread > 0 && <span className="badge badge--base">{unread} new</span>}</h4>
-        {unread > 0 && (
-          <button
-            className="btn btn--sm btn-outline--base"
-            type="button"
-            onClick={async () => {
-              await api('/user/notifications/read-all', { method: 'POST', auth: 'user' });
-              await load();
-            }}
-          >
-            Mark all read
-          </button>
-        )}
-      </div>
+    <div className="account-stack">
+      <AccountHeading
+        title="Notifications"
+        desc={unread > 0 ? `${unread} unread notification${unread === 1 ? '' : 's'}` : 'You are all caught up.'}
+        action={
+          unread > 0 ? (
+            <button
+              className="account-btn"
+              type="button"
+              onClick={async () => {
+                try {
+                  await api('/user/notifications/read-all', { method: 'POST', auth: 'user' });
+                  await load();
+                } catch {
+                  toastError('Could not mark notifications as read');
+                }
+              }}
+            >
+              <i className="las la-check-double" /> Mark all read
+            </button>
+          ) : undefined
+        }
+      />
 
       <div className="checkout-card">
-        {rows.length === 0 ? (
-          <p className="mb-0">Nothing here yet.</p>
+        {loading ? (
+          <ListSkeleton />
+        ) : rows.length === 0 ? (
+          <AccountEmpty
+            icon="las la-bell"
+            title="No notifications yet"
+            desc="Order updates and replies from the VIPURI team will appear here."
+          />
         ) : (
-          <ul className="notification-list">
-            {rows.map((row) => (
-              <li
-                className="notification-list__item d-flex justify-content-between gap-3 py-3"
-                key={row.id}
-                style={{ borderBottom: '1px solid rgba(0,0,0,.06)' }}
-              >
-                <div>
-                  <p className="mb-1" style={{ fontWeight: row.is_read ? 400 : 600 }}>
-                    {row.title}
-                  </p>
-                  <span style={{ fontSize: 13 }}>{formatDate(row.created_at, true)}</span>
-                </div>
-                {!row.is_read && (
-                  <button
-                    className="btn btn--sm btn-outline--base"
-                    type="button"
-                    onClick={async () => {
-                      await api(`/user/notifications/${row.id}/read`, { method: 'POST', auth: 'user' });
-                      await load();
-                    }}
-                  >
-                    Mark read
-                  </button>
-                )}
-              </li>
-            ))}
+          <ul className="order-list">
+            {rows.map((row) => {
+              const content = (
+                <>
+                  <span className={`order-list__icon ${row.is_read ? 'order-list__icon--neutral' : ''}`}>
+                    <i className="las la-bell" />
+                  </span>
+                  <span className="order-list__main">
+                    <span className="order-list__title">
+                      {!row.is_read && <span className="account-dot" aria-label="Unread" />}
+                      {row.title}
+                    </span>
+                    <span className="order-list__meta">{formatDate(row.created_at, true)}</span>
+                  </span>
+                </>
+              );
+              const url = row.click_url && row.click_url !== '#' ? row.click_url : null;
+              const onOpen = () => {
+                if (!row.is_read) void api(`/user/notifications/${row.id}/read`, { method: 'POST', auth: 'user' }).catch(() => undefined);
+              };
+
+              return (
+                <li
+                  key={row.id}
+                  className={`order-list__row ${row.is_read ? 'order-list__row--read' : 'order-list__row--unread'}`}
+                >
+                  {url ? (
+                    url.startsWith('/') ? (
+                      <Link className="order-list__item" href={url} onClick={onOpen}>
+                        {content}
+                      </Link>
+                    ) : (
+                      <a className="order-list__item" href={url} onClick={onOpen}>
+                        {content}
+                      </a>
+                    )
+                  ) : (
+                    <div className="order-list__item">{content}</div>
+                  )}
+                  {!row.is_read && (
+                    <button
+                      className="account-icon-btn"
+                      type="button"
+                      title="Mark as read"
+                      aria-label="Mark as read"
+                      onClick={() => void markRead(row)}
+                    >
+                      <i className="las la-check" />
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -962,6 +1323,12 @@ export function AccountProfile() {
   });
   const [image, setImage] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Show the chosen photo straight away, before it is saved.
+  const preview = useMemo(() => (image ? URL.createObjectURL(image) : null), [image]);
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview);
+  }, [preview]);
 
   useEffect(() => {
     if (!user) return;
@@ -993,6 +1360,7 @@ export function AccountProfile() {
       const { message } = await apiWithMessage('/user/profile', { method: 'POST', auth: 'user', body });
       toastSuccess(message);
       await refresh();
+      setImage(null);
     } catch (error) {
       toastError(error instanceof ApiError ? error.message : 'Could not update your profile');
     } finally {
@@ -1000,61 +1368,113 @@ export function AccountProfile() {
     }
   };
 
-  return (
-    <>
-      <div className="dashboard-header mb-4">
-        <h4 className="mb-0">Profile setting</h4>
-      </div>
+  const name = user?.fullname?.trim() || user?.username || 'Customer';
+  const initials =
+    name
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('') || 'V';
+  const photo = preview ?? (user?.image ? imageUrl(user.image) : null);
 
-      <div className="checkout-card">
-        <form onSubmit={submit}>
-          <div className="row gy-3">
-            <div className="col-sm-6">
-              <label className="form--label">{t('First name')}</label>
-              <input className="form-control form--control" required value={form.firstname} onChange={update('firstname')} />
-            </div>
-            <div className="col-sm-6">
-              <label className="form--label">{t('Last name')}</label>
-              <input className="form-control form--control" required value={form.lastname} onChange={update('lastname')} />
-            </div>
-            <div className="col-sm-6">
-              <label className="form--label">E-mail</label>
-              <input className="form-control form--control" value={user?.email ?? ''} disabled />
-            </div>
-            <div className="col-sm-6">
-              <label className="form--label">{t('Mobile')}</label>
-              <input className="form-control form--control" value={form.mobile} onChange={update('mobile')} />
-            </div>
-            <div className="col-12">
-              <label className="form--label">Address</label>
-              <input className="form-control form--control" value={form.address} onChange={update('address')} />
-            </div>
-            <div className="col-sm-6">
-              <label className="form--label">City</label>
-              <input className="form-control form--control" value={form.city} onChange={update('city')} />
-            </div>
-            <div className="col-sm-6">
-              <label className="form--label">Region</label>
-              <input className="form-control form--control" value={form.state} onChange={update('state')} />
-            </div>
-            <div className="col-12">
-              <label className="form--label">Profile photo</label>
-              <input
-                className="form-control form--control"
-                type="file"
-                accept="image/*"
-                onChange={(event) => setImage(event.target.files?.[0] ?? null)}
-              />
-            </div>
-            <div className="col-12">
-              <button className="btn btn--base" type="submit" disabled={busy}>
-                {busy ? 'Saving…' : 'Save changes'}
-              </button>
+  return (
+    <div className="account-stack">
+      <AccountHeading title="Profile setting" desc="Keep your details up to date so deliveries and receipts reach you." />
+
+      <form onSubmit={submit}>
+        <div className="row g-4">
+          <div className="col-xl-4">
+            <div className="profile-card">
+              <div className="profile-card__cover" />
+              <div className="profile-card__avatar">
+                {photo ? <img src={photo} alt={name} /> : <span>{initials}</span>}
+                <label className="profile-card__upload" title="Change photo">
+                  <i className="las la-camera" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={(event) => setImage(event.target.files?.[0] ?? null)}
+                  />
+                </label>
+              </div>
+              <h5 className="profile-card__name">{name}</h5>
+              <span className="profile-card__username">@{user?.username}</span>
+
+              <ul className="profile-card__facts">
+                <li>
+                  <i className="las la-envelope" />
+                  <span>{user?.email}</span>
+                  {user?.email_verified && <i className="las la-check-circle profile-card__verified" title="Verified" />}
+                </li>
+                <li>
+                  <i className="las la-phone" />
+                  <span>{user?.mobile ? `${user.dial_code ?? ''} ${user.mobile}` : 'No mobile number'}</span>
+                </li>
+                <li>
+                  <i className="las la-map-marker" />
+                  <span>{formatPlace(user?.city, user?.state) || 'No location set'}</span>
+                </li>
+              </ul>
+              {image && <p className="profile-card__hint">New photo selected — save to apply it.</p>}
             </div>
           </div>
-        </form>
-      </div>
-    </>
+
+          <div className="col-xl-8">
+            <div className="checkout-card">
+              <h6 className="form-section-title">
+                <i className="las la-user" /> Personal details
+              </h6>
+              <div className="row gy-3">
+                <div className="col-sm-6">
+                  <label className="form--label">{t('First name')}</label>
+                  <input className="form-control form--control" required value={form.firstname} onChange={update('firstname')} />
+                </div>
+                <div className="col-sm-6">
+                  <label className="form--label">{t('Last name')}</label>
+                  <input className="form-control form--control" required value={form.lastname} onChange={update('lastname')} />
+                </div>
+                <div className="col-sm-6">
+                  <label className="form--label">E-mail</label>
+                  <input className="form-control form--control" value={user?.email ?? ''} disabled />
+                </div>
+                <div className="col-sm-6">
+                  <label className="form--label">{t('Mobile')}</label>
+                  <div className="input-group input--group">
+                    <span className="input-group-text">{form.dial_code}</span>
+                    <input className="form-control form--control" value={form.mobile} onChange={update('mobile')} />
+                  </div>
+                </div>
+              </div>
+
+              <h6 className="form-section-title">
+                <i className="las la-map-marked-alt" /> Address
+              </h6>
+              <div className="row gy-3">
+                <div className="col-12">
+                  <label className="form--label">Street address</label>
+                  <input className="form-control form--control" value={form.address} onChange={update('address')} />
+                </div>
+                <div className="col-sm-6">
+                  <label className="form--label">City</label>
+                  <input className="form-control form--control" value={form.city} onChange={update('city')} />
+                </div>
+                <div className="col-sm-6">
+                  <label className="form--label">Region</label>
+                  <input className="form-control form--control" value={form.state} onChange={update('state')} />
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button className="btn btn--base" type="submit" disabled={busy}>
+                  {busy ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -1092,58 +1512,75 @@ export function AccountChangePassword() {
   };
 
   return (
-    <>
-      <div className="dashboard-header mb-4">
-        <h4 className="mb-0">Change password</h4>
-      </div>
+    <div className="account-stack">
+      <AccountHeading title="Change password" desc="Use a strong password you do not use anywhere else." />
 
-      <div className="checkout-card">
-        <form onSubmit={submit}>
-          <div className="row gy-3">
-            <div className="col-12">
-              <label className="form--label">Current password</label>
-              <input
-                className="form-control form--control"
-                type="password"
-                required
-                autoComplete="current-password"
-                value={form.current_password}
-                onChange={update('current_password')}
-              />
-            </div>
-            <div className="col-sm-6">
-              <label className="form--label">New password</label>
-              <input
-                className="form-control form--control"
-                type="password"
-                required
-                autoComplete="new-password"
-                value={form.password}
-                onChange={update('password')}
-              />
-            </div>
-            <div className="col-sm-6">
-              <label className="form--label">Confirm new password</label>
-              <input
-                className="form-control form--control"
-                type="password"
-                required
-                autoComplete="new-password"
-                value={form.password_confirmation}
-                onChange={update('password_confirmation')}
-              />
-            </div>
-            <div className="col-12">
-              <button className="btn btn--base" type="submit" disabled={busy}>
-                {busy ? 'Saving…' : 'Change password'}
-              </button>
-            </div>
+      <div className="row g-4">
+        <div className="col-xl-8">
+          <div className="checkout-card">
+            <form onSubmit={submit}>
+              <div className="row gy-3">
+                <div className="col-12">
+                  <label className="form--label">Current password</label>
+                  <input
+                    className="form-control form--control"
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                    value={form.current_password}
+                    onChange={update('current_password')}
+                  />
+                </div>
+                <div className="col-sm-6">
+                  <label className="form--label">New password</label>
+                  <input
+                    className="form-control form--control"
+                    type="password"
+                    required
+                    autoComplete="new-password"
+                    value={form.password}
+                    onChange={update('password')}
+                  />
+                </div>
+                <div className="col-sm-6">
+                  <label className="form--label">Confirm new password</label>
+                  <input
+                    className="form-control form--control"
+                    type="password"
+                    required
+                    autoComplete="new-password"
+                    value={form.password_confirmation}
+                    onChange={update('password_confirmation')}
+                  />
+                </div>
+              </div>
+              <div className="form-actions">
+                <button className="btn btn--base" type="submit" disabled={busy}>
+                  {busy ? 'Saving…' : 'Change password'}
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
+
+        <div className="col-xl-4">
+          <div className="tip-card">
+            <span className="tip-card__icon">
+              <i className="las la-shield-alt" />
+            </span>
+            <h6 className="tip-card__title">Keep your account safe</h6>
+            <ul className="tip-card__list">
+              <li>At least 8 characters</li>
+              <li>Mix letters, numbers and symbols</li>
+              <li>Never share it — VIPURI staff will never ask for it</li>
+            </ul>
+          </div>
+        </div>
       </div>
-    </>
+    </div>
   );
 }
+
 
 /* --------------------------------- Tickets -------------------------------- */
 
@@ -1157,11 +1594,23 @@ type Ticket = {
   created_at: string;
 };
 
-const TICKET_STATUS: Record<number, string> = { 0: 'Open', 1: 'Answered', 2: 'Replied', 3: 'Closed' };
+type TicketMessage = {
+  id: number;
+  message: string;
+  from_admin: boolean;
+  admin_name: string | null;
+  created_at: string;
+  attachments: { id: number; name: string }[];
+};
+
+function TicketPill({ status }: { status: number }) {
+  return <span className={`status-pill status-pill--${ticketTone(status)}`}>{ticketLabel(status)}</span>;
+}
 
 export function AccountTickets() {
   const t = useTranslate();
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ subject: '', message: '', priority: '2' });
   const [busy, setBusy] = useState(false);
 
@@ -1171,6 +1620,8 @@ export function AccountTickets() {
       setTickets(data.tickets ?? []);
     } catch {
       setTickets([]);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -1195,44 +1646,54 @@ export function AccountTickets() {
   };
 
   return (
-    <>
-      <div className="dashboard-header mb-4">
-        <h4 className="mb-0">Support</h4>
-      </div>
+    <div className="account-stack">
+      <AccountHeading title="Support" desc="Open a ticket and the VIPURI team will get back to you." />
 
-      <div className="row gy-4">
+      <div className="row g-4">
         <div className="col-lg-7">
           <div className="checkout-card">
             <h5 className="checkout-card__title">Your tickets</h5>
-            {tickets.length === 0 ? (
-              <p className="mb-0">You have not opened a ticket yet.</p>
+            {loading ? (
+              <ListSkeleton />
+            ) : tickets.length === 0 ? (
+              <AccountEmpty
+                icon="las la-headset"
+                title="No tickets yet"
+                desc="Questions about an order or a part? Open a ticket and we will reply here."
+                action={
+                  <button
+                    type="button"
+                    className="btn btn--base btn--sm"
+                    onClick={() => {
+                      const field = document.getElementById('ticket-subject');
+                      field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      field?.focus({ preventScroll: true });
+                    }}
+                  >
+                    Open a ticket
+                  </button>
+                }
+              />
             ) : (
-              <div className="table-responsive">
-                <table className="table table--responsive--md">
-                  <thead>
-                    <tr>
-                      <th>Ticket</th>
-                      <th>{t('Subject')}</th>
-                      <th>{t('Status')}</th>
-                      <th>Last reply</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tickets.map((ticket) => (
-                      <tr key={ticket.id}>
-                        <td>
-                          <Link href={`/user/tickets/${ticket.ticket}`}>{ticket.ticket}</Link>
-                        </td>
-                        <td>{ticket.subject}</td>
-                        <td>
-                          <span className="badge badge--base">{TICKET_STATUS[ticket.status] ?? 'Open'}</span>
-                        </td>
-                        <td>{formatDate(ticket.last_reply ?? ticket.created_at)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ul className="order-list">
+                {tickets.map((ticket) => (
+                  <li key={ticket.id}>
+                    <Link className="order-list__item" href={`/user/tickets/${ticket.ticket}`}>
+                      <span className="order-list__icon">
+                        <i className="las la-headset" />
+                      </span>
+                      <span className="order-list__main">
+                        <span className="order-list__number">{ticket.subject}</span>
+                        <span className="order-list__meta">
+                          #{ticket.ticket} · {formatDate(ticket.last_reply ?? ticket.created_at)}
+                        </span>
+                      </span>
+                      <TicketPill status={ticket.status} />
+                      <i className="las la-angle-right order-list__arrow" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>
@@ -1241,69 +1702,85 @@ export function AccountTickets() {
           <div className="checkout-card">
             <h5 className="checkout-card__title">Open a ticket</h5>
             <form onSubmit={submit}>
-              <div className="form-group mb-3">
-                <label className="form--label">{t('Subject')}</label>
-                <input
-                  className="form-control form--control"
-                  required
-                  value={form.subject}
-                  onChange={(event) => setForm((current) => ({ ...current, subject: event.target.value }))}
-                />
+              <h6 className="form-section-title">
+                <i className="las la-edit" /> Your question
+              </h6>
+              <div className="row gy-3">
+                <div className="col-12">
+                  <label className="form--label" htmlFor="ticket-subject">
+                    {t('Subject')}
+                  </label>
+                  <input
+                    id="ticket-subject"
+                    className="form-control form--control"
+                    required
+                    placeholder="e.g. Brake pads for order #…"
+                    value={form.subject}
+                    onChange={(event) => setForm((current) => ({ ...current, subject: event.target.value }))}
+                  />
+                </div>
+                <div className="col-12">
+                  <label className="form--label" htmlFor="ticket-priority">
+                    Priority
+                  </label>
+                  <select
+                    id="ticket-priority"
+                    className="form-select form--select form--control"
+                    value={form.priority}
+                    onChange={(event) => setForm((current) => ({ ...current, priority: event.target.value }))}
+                  >
+                    <option value="1">Low</option>
+                    <option value="2">Medium</option>
+                    <option value="3">High</option>
+                  </select>
+                </div>
+                <div className="col-12">
+                  <label className="form--label" htmlFor="ticket-message">
+                    {t('Message')}
+                  </label>
+                  <textarea
+                    id="ticket-message"
+                    className="form-control form--control"
+                    rows={5}
+                    required
+                    value={form.message}
+                    onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))}
+                  />
+                </div>
               </div>
-              <div className="form-group mb-3">
-                <label className="form--label">Priority</label>
-                <select
-                  className="form-select form--select"
-                  value={form.priority}
-                  onChange={(event) => setForm((current) => ({ ...current, priority: event.target.value }))}
-                >
-                  <option value="1">Low</option>
-                  <option value="2">Medium</option>
-                  <option value="3">High</option>
-                </select>
+              <div className="form-actions">
+                <button className="btn btn--base" type="submit" disabled={busy}>
+                  {busy ? 'Sending…' : 'Create ticket'}
+                </button>
               </div>
-              <div className="form-group mb-3">
-                <label className="form--label">{t('Message')}</label>
-                <textarea
-                  className="form-control form--control"
-                  rows={5}
-                  required
-                  value={form.message}
-                  onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))}
-                />
-              </div>
-              <button className="btn btn--base w-100" type="submit" disabled={busy}>
-                {busy ? 'Sending…' : 'Create ticket'}
-              </button>
             </form>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
 export function AccountTicketDetail({ ticketNumber }: { ticketNumber: string }) {
   const [ticket, setTicket] = useState<Ticket | null>(null);
-  const [messages, setMessages] = useState<
-    { id: number; message: string; from_admin: boolean; admin_name: string | null; created_at: string;
-      attachments: { id: number; name: string }[] }[]
-  >([]);
+  const [messages, setMessages] = useState<TicketMessage[]>([]);
+  const [loading, setLoading] = useState(true);
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
+  const [closing, setClosing] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const data = await api<{
-        ticket: Ticket;
-        messages: { id: number; message: string; from_admin: boolean; admin_name: string | null; created_at: string;
-      attachments: { id: number; name: string }[] }[];
-      }>(`/user/tickets/${ticketNumber}`, { auth: 'user' });
+      const data = await api<{ ticket: Ticket; messages: TicketMessage[] }>(`/user/tickets/${ticketNumber}`, {
+        auth: 'user',
+      });
 
       setTicket(data.ticket);
       setMessages(data.messages ?? []);
     } catch {
       setTicket(null);
+    } finally {
+      setLoading(false);
     }
   }, [ticketNumber]);
 
@@ -1311,70 +1788,105 @@ export function AccountTicketDetail({ ticketNumber }: { ticketNumber: string }) 
     void load();
   }, [load]);
 
-  if (!ticket) return <EmptyMessage message="Ticket not found" action={{ label: 'Support', href: '/user/tickets' }} />;
+  if (loading) {
+    return (
+      <div className="account-stack">
+        <div className="vp-skeleton vp-skeleton--title" />
+        <div className="checkout-card">
+          <ListSkeleton />
+        </div>
+      </div>
+    );
+  }
+
+  if (!ticket) {
+    return (
+      <div className="account-stack">
+        <BackLink href="/user/tickets" label="Support" />
+        <div className="checkout-card">
+          <AccountEmpty
+            icon="las la-search"
+            title="Ticket not found"
+            desc="We could not find this ticket on your account."
+            action={
+              <Link href="/user/tickets" className="btn btn--base btn--sm">
+                Back to support
+              </Link>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // The API sends newest first; a conversation reads oldest first.
+  const thread = messages.slice().reverse();
 
   return (
-    <>
-      <div className="dashboard-header mb-4">
-        <h4 className="mb-1">
-          {ticket.ticket} — {ticket.subject}
-        </h4>
-        <span className="badge badge--base">{TICKET_STATUS[ticket.status] ?? 'Open'}</span>
-      </div>
+    <div className="account-stack">
+      <AccountHeading
+        title={ticket.subject}
+        desc={`#${ticket.ticket} · opened ${formatDate(ticket.created_at, true)}`}
+        action={
+          <>
+            <TicketPill status={ticket.status} />
+            <Link href="/user/tickets" className="account-btn">
+              <i className="las la-arrow-left" /> Support
+            </Link>
+          </>
+        }
+      />
 
       <div className="checkout-card">
         <ul className="ticket-thread">
-          {messages
-            .slice()
-            .reverse()
-            .map((message) => (
-              <li className="ticket-thread__item mb-3" key={message.id}>
-                <div
-                  className="p-3"
-                  style={{
-                    borderRadius: 10,
-                    background: message.from_admin ? 'rgba(255,122,0,.08)' : 'rgba(0,0,0,.03)',
-                  }}
-                >
-                  <div className="d-flex justify-content-between mb-2">
-                    <strong>{message.from_admin ? message.admin_name ?? 'VIPURI Support' : 'You'}</strong>
-                    <span style={{ fontSize: 13 }}>{formatDate(message.created_at, true)}</span>
-                  </div>
-                  <p className="mb-0" style={{ whiteSpace: 'pre-line' }}>
-                    {message.message}
-                  </p>
+          {thread.map((message) => (
+            <li className={`ticket-msg ${message.from_admin ? 'ticket-msg--staff' : 'ticket-msg--mine'}`} key={message.id}>
+              <div className="ticket-msg__meta">
+                <span className="ticket-msg__author">
+                  {message.from_admin ? (message.admin_name ?? 'VIPURI Support') : 'You'}
+                </span>
+                <time dateTime={message.created_at}>{formatDate(message.created_at, true)}</time>
+              </div>
+              <div className="ticket-msg__bubble">
+                <p className="ticket-msg__text">{message.message}</p>
 
-                  {message.attachments?.length > 0 && (
-                    <ul className="ticket-attachments mt-3">
-                      {message.attachments.map((attachment) => (
-                        <li key={attachment.id}>
-                          <button
-                            type="button"
-                            className="btn btn--sm btn-outline--base"
-                            onClick={async () => {
-                              try {
-                                await downloadFile(`/user/attachments/${attachment.id}`, attachment.name, 'user');
-                              } catch (error) {
-                                toastError(
-                                  error instanceof ApiError ? error.message : 'That file could not be downloaded',
-                                );
-                              }
-                            }}
-                          >
-                            <i className="las la-paperclip" /> {attachment.name}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </li>
-            ))}
+                {message.attachments?.length > 0 && (
+                  <ul className="ticket-attachments">
+                    {message.attachments.map((attachment) => (
+                      <li key={attachment.id}>
+                        <button
+                          type="button"
+                          className="account-btn"
+                          onClick={async () => {
+                            try {
+                              await downloadFile(`/user/attachments/${attachment.id}`, attachment.name, 'user');
+                            } catch (error) {
+                              toastError(error instanceof ApiError ? error.message : 'That file could not be downloaded');
+                            }
+                          }}
+                        >
+                          <i className="las la-paperclip" /> {attachment.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </li>
+          ))}
         </ul>
 
-        {ticket.status !== 3 && (
+        {ticket.status === 3 ? (
+          <p className="ticket-closed-note">
+            This ticket is closed. Need more help?{' '}
+            <Link href="/user/tickets" className="text--base">
+              Open a new ticket
+            </Link>
+            .
+          </p>
+        ) : (
           <form
-            className="mt-3"
+            className="ticket-reply"
             onSubmit={async (event) => {
               event.preventDefault();
               setBusy(true);
@@ -1395,7 +1907,11 @@ export function AccountTicketDetail({ ticketNumber }: { ticketNumber: string }) 
               }
             }}
           >
+            <label className="form--label" htmlFor="ticket-reply">
+              Reply
+            </label>
             <textarea
+              id="ticket-reply"
               className="form-control form--control"
               rows={4}
               required
@@ -1403,24 +1919,37 @@ export function AccountTicketDetail({ ticketNumber }: { ticketNumber: string }) 
               value={reply}
               onChange={(event) => setReply(event.target.value)}
             />
-            <div className="d-flex gap-2 mt-3">
-              <button className="btn btn--base" type="submit" disabled={busy}>
-                {busy ? 'Sending…' : 'Send reply'}
-              </button>
+            <div className="form-actions">
               <button
-                className="btn btn-outline--base"
+                className="btn btn-outline--danger"
                 type="button"
+                disabled={closing}
                 onClick={async () => {
-                  await apiWithMessage(`/user/tickets/${ticketNumber}/close`, { method: 'POST', auth: 'user' });
-                  await load();
+                  if (!window.confirm('Close this ticket? You can always open a new one.')) return;
+                  setClosing(true);
+                  try {
+                    const { message } = await apiWithMessage(`/user/tickets/${ticketNumber}/close`, {
+                      method: 'POST',
+                      auth: 'user',
+                    });
+                    toastSuccess(message);
+                    await load();
+                  } catch (error) {
+                    toastError(error instanceof ApiError ? error.message : 'Could not close this ticket');
+                  } finally {
+                    setClosing(false);
+                  }
                 }}
               >
-                Close ticket
+                {closing ? 'Closing…' : 'Close ticket'}
+              </button>
+              <button className="btn btn--base" type="submit" disabled={busy}>
+                <i className="las la-paper-plane" /> {busy ? 'Sending…' : 'Send reply'}
               </button>
             </div>
           </form>
         )}
       </div>
-    </>
+    </div>
   );
 }

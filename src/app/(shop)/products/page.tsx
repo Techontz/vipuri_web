@@ -21,7 +21,7 @@ function ProductListingFallback() {
   return (
     <section className="my-120">
       <div className="container">
-        <div className="row gy-4">
+        <div className="row gy-4 shop-grid">
           {Array.from({ length: 8 }).map((_, index) => (
             <div className="col-xsm-6 col-sm-6 col-lg-4 col-xxl-3" key={index}>
               <div className="vp-skeleton vp-skeleton--card" />

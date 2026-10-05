@@ -290,7 +290,7 @@ export function ProductListing() {
 
                 <div className="page-content__body productsData">
                   {loading ? (
-                    <div className="row gy-4">
+                    <div className="row gy-4 shop-grid">
                       {Array.from({ length: 8 }).map((_, index) => (
                         <div className="col-xsm-6 col-sm-6 col-lg-4 col-xxl-3" key={index}>
                           <div className="vp-skeleton vp-skeleton--card" />
@@ -300,7 +300,7 @@ export function ProductListing() {
                   ) : products.length === 0 ? (
                     <EmptyMessage message="No product found" />
                   ) : (
-                    <div className="row gy-4">
+                    <div className="row gy-4 shop-grid">
                       {products.map((product) => (
                         <div className="col-xsm-6 col-sm-6 col-lg-4 col-xxl-3" key={product.id}>
                           <ProductCard product={product} showcase="popular" />

@@ -8,15 +8,17 @@ import { useSettings } from '@/components/providers/AppProviders';
 const STORAGE_KEY = 'vipuri_gdpr_cookie';
 
 /**
- * GDPR notice, mirroring the `cookies-card` block in `layouts/app.blade.php`.
+ * Cookie notice.
  *
  * The original recorded consent in a `gdpr_cookie` cookie set by the server.
  * With a static frontend there is nothing to set it, so consent is kept in
  * localStorage — same behaviour for the visitor, one fewer round trip.
  *
- * The card is rendered with `.hide` and revealed on the next frame so it slides
- * up the way the theme's transition intends, and so it never flashes for a
- * visitor who has already accepted.
+ * The site only sets the cookies it needs to run (session, cart, language), so
+ * there is a single "Accept" rather than a set of categories that would not
+ * change anything. The card is mounted hidden and revealed on the next frame
+ * so it eases in (vipuri-site.css; motion is dropped for reduced-motion
+ * users) and never flashes for a visitor who has already accepted.
  */
 export function CookieConsent() {
   const settings = useSettings();
@@ -35,10 +37,19 @@ export function CookieConsent() {
       // rather than suppress it.
     }
 
-    setNeeded(true);
-    const timer = window.setTimeout(() => setShown(true), 400);
+    // Mount hidden, then reveal on the following frame so the transition runs.
+    let frame = 0;
+    const timer = window.setTimeout(() => {
+      setNeeded(true);
+      frame = window.requestAnimationFrame(() => {
+        frame = window.requestAnimationFrame(() => setShown(true));
+      });
+    }, 400);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      window.cancelAnimationFrame(frame);
+    };
   }, [cookie]);
 
   if (!cookie || !needed) return null;
@@ -51,25 +62,32 @@ export function CookieConsent() {
     }
 
     setShown(false);
-    window.setTimeout(() => setNeeded(false), 600);
+    window.setTimeout(() => setNeeded(false), 400);
   };
 
   return (
-    <div className={`cookies-card text-center ${shown ? '' : 'hide'}`}>
-      <div className="cookies-card__icon bg--base">
+    <div
+      className={`vp-cookie${shown ? ' is-visible' : ''}`}
+      role="region"
+      aria-label="Cookie notice"
+      aria-hidden={!shown}
+    >
+      <div className="vp-cookie__icon" aria-hidden="true">
         <i className="las la-cookie-bite" />
       </div>
-      <p className="mt-4 cookies-card__content">
-        {cookie.short_desc}{' '}
-        <Link href="/cookie-policy" target="_blank" className="text--base">
-          learn more
-        </Link>
-      </p>
-      <div className="cookies-card__btn mt-4">
-        <button type="button" className="btn btn--base w-100 policy" onClick={accept}>
-          Allow
-        </button>
+      <div className="vp-cookie__body">
+        <p className="vp-cookie__title">We use cookies</p>
+        <p className="vp-cookie__text">
+          {cookie.short_desc ||
+            'We use essential cookies to keep you signed in, remember your cart and make the shop work.'}{' '}
+          <Link href="/cookie-policy" className="vp-cookie__link">
+            Cookie policy
+          </Link>
+        </p>
       </div>
+      <button type="button" className="vp-cookie__btn" onClick={accept} tabIndex={shown ? 0 : -1}>
+        Accept
+      </button>
     </div>
   );
 }

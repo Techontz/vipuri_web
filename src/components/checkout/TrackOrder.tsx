@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ApiError, api } from '@/lib/api';
 import { formatDate } from '@/lib/format';
+import { orderTone, paymentTone } from '@/lib/status';
 
 type Tracking = {
   order_number: string;
@@ -19,6 +20,41 @@ type Tracking = {
   delivered_at: string | null;
   timeline: { status: number; label: string; remark: string | null; at: string }[];
 };
+
+/**
+ * The remark, when it says more than the status label. The system writes a
+ * generic remark for each status ("Pending" → "Order placed"), which only
+ * repeated the label; staff-written notes are kept.
+ */
+const GENERIC_REMARKS = new Set([
+  'order placed',
+  'order confirmed',
+  'order processing',
+  'order dispatched',
+  'order shipped',
+  'order delivered',
+  'order cancelled',
+  'order canceled',
+  'status updated',
+]);
+
+function usefulRemark(label: string, remark: string | null): string | null {
+  const text = (remark ?? '').trim();
+  if (!text) return null;
+
+  const norm = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const r = norm(text);
+  const l = norm(label);
+
+  if (r === l || r === `order ${l}` || GENERIC_REMARKS.has(r)) return null;
+
+  return text;
+}
 
 /** Public order tracking, mirroring `templates/basic/track_order.blade.php`. */
 export function TrackOrder() {
@@ -63,7 +99,7 @@ export function TrackOrder() {
                 <p>Enter the order number from your confirmation e-mail or SMS.</p>
 
                 <form
-                  className="d-flex gap-2 mt-3"
+                  className="track-form mt-3"
                   onSubmit={(event) => {
                     event.preventDefault();
                     void lookup(orderNumber);
@@ -75,8 +111,8 @@ export function TrackOrder() {
                     value={orderNumber}
                     onChange={(event) => setOrderNumber(event.target.value)}
                   />
-                  <button className="btn btn--base" type="submit" disabled={busy}>
-                    {busy ? 'Checking…' : 'Track'}
+                  <button className="btn btn--base track-form__btn" type="submit" disabled={busy}>
+                    <i className="las la-search" /> {busy ? 'Checking…' : 'Track order'}
                   </button>
                 </form>
 
@@ -87,26 +123,41 @@ export function TrackOrder() {
                 <div className="checkout-card mt-4">
                   <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <h5 className="checkout-card__title mb-0">{tracking.order_number}</h5>
-                    <div className="d-flex gap-2">
-                      <span className="badge badge--base">{tracking.status_label}</span>
-                      <span className="badge badge--primary">{tracking.payment_status_label}</span>
+                    <div className="d-flex flex-wrap gap-2">
+                      <span className={`status-pill status-pill--${orderTone(tracking.status)}`}>
+                        Order: {tracking.status_label}
+                      </span>
+                      <span className={`status-pill status-pill--${paymentTone(tracking.payment_status)}`}>
+                        Payment: {tracking.payment_status_label}
+                      </span>
                     </div>
                   </div>
 
                   {tracking.branch && <p className="mt-2 mb-0">Handled by {tracking.branch}</p>}
+                  <ol className="order-timeline track-timeline mt-4">
+                    {tracking.timeline.map((step, index) => {
+                      const current = index === tracking.timeline.length - 1;
+                      const remark = usefulRemark(step.label, step.remark);
 
-                  <ul className="order-timeline mt-4">
-                    {tracking.timeline.map((step, index) => (
-                      <li className="order-timeline__item" key={index}>
-                        <div className="order-timeline__dot" />
-                        <div className="order-timeline__content">
-                          <h6 className="mb-1">{step.label}</h6>
-                          <span style={{ fontSize: 13 }}>{formatDate(step.at, true)}</span>
-                          {step.remark && <p className="mb-0 mt-1">{step.remark}</p>}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                      return (
+                        <li
+                          className={`order-timeline__item${current ? ' is-current' : ''}`}
+                          key={index}
+                          aria-current={current ? 'step' : undefined}
+                        >
+                          <div className="order-timeline__dot" />
+                          <div className="order-timeline__content">
+                            <h6 className="track-timeline__label">
+                              {step.label}
+                              {current && <span className="track-timeline__now">Latest</span>}
+                            </h6>
+                            <span className="track-timeline__time">{formatDate(step.at, true)}</span>
+                            {remark && <p className="track-timeline__remark">{remark}</p>}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
                 </div>
               )}
             </div>

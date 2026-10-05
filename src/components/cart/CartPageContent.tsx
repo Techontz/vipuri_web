@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 
+import { ShopEmptyState } from '@/components/cart/ShopEmptyState';
 import { WishlistButton } from '@/components/product/ProductCard';
 import { QuantityInput } from '@/components/ui/QuantityInput';
 import { useTranslate } from '@/components/providers/LanguageProvider';
@@ -20,6 +21,17 @@ export function CartPageContent() {
   const [couponCode, setCouponCode] = useState('');
   const [applying, setApplying] = useState(false);
 
+  // An empty basket gets one clear empty state — no summary panel with zeros.
+  if (!loading && items.length === 0) {
+    return (
+      <section className="my-120 cart cart--empty">
+        <div className="container">
+          <ShopEmptyState icon="las la-shopping-cart" title="Your cart is empty" />
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="dashboard my-120 cart">
       <div className="container large-container">
@@ -28,7 +40,8 @@ export function CartPageContent() {
             Shopping Cart <i className="las la-shopping-cart" />
           </h5>
           <p className="desc mb-0">
-            <span className="cartItemsCount">{summary.cart_count}</span> Items in cart
+            <span className="cartItemsCount">{summary.cart_count}</span> {summary.cart_count === 1 ? 'item' : 'items'} in
+            cart
           </p>
         </div>
 
@@ -42,16 +55,6 @@ export function CartPageContent() {
                       <div className="vp-skeleton" style={{ height: 120, width: '100%' }} />
                     </li>
                   ))
-                ) : items.length === 0 ? (
-                  <div className="empty-message">
-                    <div className="empty-message-icon">
-                      <img src="/assets/images/empty_cart.png" alt="img" />
-                    </div>
-                    <p className="empty-message-text">No items found</p>
-                    <Link href="/products" className="btn btn-outline--base btn--sm mt-3">
-                      View Products
-                    </Link>
-                  </div>
                 ) : (
                   items.map((item) => (
                     <li className="cart-list-item singleCartItem" data-id={item.id} key={item.id}>
@@ -162,8 +165,8 @@ export function CartPageContent() {
                     <span>Total Items</span> <span>{summary.total_items}</span>
                   </li>
                   {summary.total_tax > 0 && (
-                    <li>
-                      <span>{t('Tax')}</span> <span>{showAmount(summary.total_tax)}</span>
+                    <li className="summary-vat">
+                      <span>VAT (included)</span> <span>{showAmount(summary.total_tax)}</span>
                     </li>
                   )}
                   {summary.coupon && (
@@ -191,15 +194,13 @@ export function CartPageContent() {
                   <span>{t('Total')}</span> <span>{showAmount(summary.subtotal - summary.discount)}</span>
                 </div>
 
-                {items.length > 0 ? (
-                  <Link href="/checkout" className="btn--base btn w-100">
-                    {t('Checkout')}
-                  </Link>
-                ) : (
-                  <Link href="/products" className="btn--base btn w-100">
-                    Start Shopping
-                  </Link>
-                )}
+                <Link
+                  href="/checkout"
+                  className={`btn--base btn w-100 mt-3 ${items.length === 0 ? 'disabled' : ''}`}
+                  aria-disabled={items.length === 0}
+                >
+                  {t('Checkout')}
+                </Link>
               </div>
             </div>
           </div>
